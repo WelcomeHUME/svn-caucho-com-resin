@@ -48,7 +48,6 @@ import java.util.logging.Logger;
 
 import javax.sql.DataSource;
 
-import com.caucho.cache.Cache;
 import com.caucho.config.ConfigException;
 import com.caucho.java.JavaCompilerUtil;
 import com.caucho.quercus.annotation.ClassImplementation;
