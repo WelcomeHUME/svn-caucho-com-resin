@@ -749,7 +749,6 @@ public class OptionsModule extends AbstractQuercusModule {
     env.println("System => " + System.getProperty("os.name") + " "
               + System.getProperty("os.version") + " "
               + System.getProperty("os.arch"));
-    env.println("Build Date => " + env.getQuercus().getVersionDate());
     env.println("Configure Command => n/a");
     env.println("Server API => CGI");
     env.println("Virtual Directory Support => disabled");

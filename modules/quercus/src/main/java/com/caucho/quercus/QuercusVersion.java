@@ -29,17 +29,25 @@
 
 package com.caucho.quercus;
 
-import com.caucho.Version;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 
 public class QuercusVersion
 {
+  private static final Properties mavenProperties;
+  static {
+    mavenProperties = new Properties();
+    try (InputStream is = QuercusVersion.class.getResourceAsStream("/META-INF/maven/com/caucho/quercus/pom.properties")) {
+      mavenProperties.load(is);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+  
   public static String getVersionNumber()
   {
-    return Version.VERSION;
+    return mavenProperties.getProperty("version", "UNKNOWN");
   }
 
-  public static String getVersionDate()
-  {
-    return Version.VERSION_DATE;
-  }
 }

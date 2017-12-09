@@ -38,18 +38,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.caucho.VersionFactory;
 import com.caucho.config.ConfigException;
 import com.caucho.config.inject.BeanBuilder;
 import com.caucho.config.inject.InjectManager;
-import com.caucho.env.meter.CountSensor;
-import com.caucho.env.meter.MeterService;
 import com.caucho.lifecycle.*;
 import com.caucho.loader.DynamicClassLoader;
 import com.caucho.loader.Environment;
 import com.caucho.loader.EnvironmentClassLoader;
 import com.caucho.loader.EnvironmentLocal;
-import com.caucho.util.Alarm;
+import com.caucho.quercus.QuercusVersion;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.L10N;
 import com.caucho.vfs.Path;
@@ -484,7 +481,7 @@ public class ResinSystem
       if (! CurrentTime.isTest()) {
         log.info("");
 
-        log.info(VersionFactory.getFullVersion());
+        log.info(QuercusVersion.getVersionNumber());
         
         log.info("");
 

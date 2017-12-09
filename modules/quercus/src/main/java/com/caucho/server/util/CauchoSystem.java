@@ -35,9 +35,9 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
-import com.caucho.VersionFactory;
 import com.caucho.java.WorkDir;
 import com.caucho.loader.EnvironmentLocal;
+import com.caucho.quercus.QuercusVersion;
 import com.caucho.util.Alarm;
 import com.caucho.util.CharBuffer;
 import com.caucho.util.Crc64;
@@ -175,20 +175,12 @@ public class CauchoSystem {
 
   public static String getVersion()
   {
-    if (_resinVersion == null) {
-      _resinVersion = VersionFactory.getVersion();
-    }
-    
-    return _resinVersion;
+    return QuercusVersion.getVersionNumber();
   }
   
   public static String getFullVersion()
   {
-    if (_resinFullVersion == null) {
-      _resinFullVersion = VersionFactory.getFullVersion();
-    }
-    
-    return _resinFullVersion;
+    return getVersion();
   }
  
   public static long getVersionId()

@@ -380,11 +380,6 @@ public class QuercusContext
     return "Open Source " + QuercusVersion.getVersionNumber();
   }
 
-  public String getVersionDate()
-  {
-    return QuercusVersion.getVersionDate();
-  }
-
   /**
    * Returns the SAPI (Server API) name.
    */
