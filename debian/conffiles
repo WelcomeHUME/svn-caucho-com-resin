@@ -1,6 +1,0 @@
-/etc/resin/resin.xml
-/etc/resin/resin.properties
-/etc/resin/app-default.xml
-/etc/resin/cluster-default.xml
-/etc/init.d/resin
-/var/resin/webapps/ROOT/index.jsp
