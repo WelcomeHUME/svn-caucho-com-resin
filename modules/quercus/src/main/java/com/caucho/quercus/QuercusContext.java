@@ -2067,11 +2067,6 @@ public class QuercusContext
     return str;
   }
 
-  public Cache getSessionCache()
-  {
-    return null;
-  }
-
   public void setSessionTimeout(long sessionTimeout)
   {
   }

@@ -37,12 +37,10 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.caucho.cache.Cache;
 import com.caucho.config.ConfigException;
 import com.caucho.quercus.QuercusContext;
 import com.caucho.quercus.env.Env;
 import com.caucho.quercus.env.SessionArrayValue;
-import com.caucho.quercus.env.StringBuilderValue;
 import com.caucho.util.Alarm;
 import com.caucho.util.AlarmListener;
 import com.caucho.util.Base64;
@@ -101,8 +99,6 @@ public class QuercusSessionManager
 
   //private Alarm _alarm = new Alarm(this);
 
-  private Cache _persistentStore;
-
   // statistics
   protected Object _statisticsLock = new Object();
   protected long _sessionCreateCount;
@@ -115,8 +111,6 @@ public class QuercusSessionManager
   {
     _sessions = new LruCache<String,SessionArrayValue>(_sessionMax);
     _sessionIter = _sessions.values();
-
-    _persistentStore = quercus.getSessionCache();
   }
 
   /**
@@ -286,9 +280,6 @@ public class QuercusSessionManager
   public void removeSession(String sessionId)
   {
     _sessions.remove(sessionId);
-    
-    if (_persistentStore != null)
-      _persistentStore.remove(sessionId);
 
     remove(sessionId);
   }
@@ -439,10 +430,6 @@ public class QuercusSessionManager
     _sessions.put(session.getId(), copy);
     
     session.finish();
-
-    if (_persistentStore != null) {
-      _persistentStore.put(session.getId(), copy.encode(env));
-    }
   }
 
   /**
@@ -492,14 +479,6 @@ public class QuercusSessionManager
       }
       else if (now <= 0) {
         return false;
-      }
-
-      if (_persistentStore != null) {
-        String encoded = (String) _persistentStore.get(session.getId());
-
-        if (encoded != null) {
-          session.decode(env, new StringBuilderValue(encoded));
-        }
       }
       
       if (session.load()) {
