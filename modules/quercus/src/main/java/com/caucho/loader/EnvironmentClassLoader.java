@@ -38,18 +38,11 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.caucho.config.ConfigException;
 import com.caucho.lifecycle.Lifecycle;
-import com.caucho.loader.enhancer.ScanListener;
-import com.caucho.loader.enhancer.ScanManager;
-import com.caucho.loader.module.ArtifactManager;
-import com.caucho.management.server.EnvironmentMXBean;
-import com.caucho.util.Alarm;
 import com.caucho.util.Crc64;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.LruCache;
@@ -77,20 +70,12 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   // listeners invoked when a Loader is added
   private static EnvironmentLocal<ArrayList<AddLoaderListener>> _addLoaderListeners;
 
-  // The owning bean
-  private EnvironmentBean _owner;
-
   // Class loader specific attributes
   private ConcurrentHashMap<String,Object> _attributes
     = new ConcurrentHashMap<String,Object>(8);
 
-  private ArrayList<ScanListener> _scanListeners;
   private ArrayList<ScanRoot> _pendingScanRoots = new ArrayList<ScanRoot>();
 
-  private AtomicReference<ArtifactManager> _artifactManagerRef
-    = new AtomicReference<ArtifactManager>();
-  private ArtifactManager _artifactManager;
-  
   private ArrayList<String> _packageList = new ArrayList<String>();
 
   // Array of listeners
@@ -103,13 +88,9 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   private LruCache<String,ResourceEntry> _resourceCacheMap
     = new LruCache<String,ResourceEntry>(256);
 
-  private WeakStopListener _stopListener;
-
   // The state of the environment
   private volatile Lifecycle _lifecycle = new Lifecycle();
   private boolean _isConfigComplete;
-
-  private EnvironmentAdmin _admin;
 
   private Throwable _configException;
   
@@ -216,22 +197,6 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   }
 
   /**
-   * Returns the environment's owner.
-   */
-  public EnvironmentBean getOwner()
-  {
-    return _owner;
-  }
-
-  /**
-   * Sets the environment's owner.
-   */
-  public void setOwner(EnvironmentBean owner)
-  {
-    _owner = owner;
-  }
-
-  /**
    * Sets the config exception.
    */
   public void setConfigException(Throwable e)
@@ -254,14 +219,6 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   public boolean isActive()
   {
     return _lifecycle.isActive();
-  }
-
-  /**
-   * Returns the admin
-   */
-  public EnvironmentMXBean getAdmin()
-  {
-    return _admin;
   }
 
   /**
@@ -433,20 +390,6 @@ public class EnvironmentClassLoader extends DynamicClassLoader
    */
   private void initListeners()
   {
-    ClassLoader parent = getParent();
-
-    for (; parent != null; parent = parent.getParent()) {
-      if (parent instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader loader = (EnvironmentClassLoader) parent;
-
-        if (_stopListener == null)
-          _stopListener = new WeakStopListener(this);
-
-        loader.addListener(_stopListener);
-
-        return;
-      }
-    }
   }
 
   /**
@@ -739,88 +682,11 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   }
 
   /**
-   * Adds a scan listener.
-   */
-  public void addScanListener(ScanListener listener)
-  {
-    if (_scanListeners == null)
-      _scanListeners = new ArrayList<ScanListener>();
-
-    int i = 0;
-    for (; i < _scanListeners.size(); i++) {
-      if (listener.getScanPriority() < _scanListeners.get(i).getScanPriority())
-        break;
-    }
-    _scanListeners.add(i, listener);
-
-    ArrayList<URL> urlList = new ArrayList<URL>();
-    for (URL url : getURLs()) {
-      if (isScanRootAvailable(url))
-        urlList.add(url);
-    }
-
-    if (urlList.size() > 0) {
-      try {
-        make();
-      } catch (Exception e) {
-        log().log(Level.WARNING, e.toString(), e);
-
-        if (_configException == null)
-          _configException = e;
-      }
-
-      ArrayList<ScanListener> selfList = new ArrayList<ScanListener>();
-      selfList.add(listener);
-      ScanManager scanManager = new ScanManager(selfList);
-
-      for (URL url : urlList) {
-        scanManager.scan(this, url, null);
-      }
-    }
-  }
-  
-  private boolean isScanRootAvailable(URL url)
-  {
-    for (ScanRoot scanRoot : _pendingScanRoots) {
-      if (url.equals(scanRoot.getUrl()))
-        return false;
-    }
-    
-    return true;
-  }
-
-  /**
-   * Returns the artifact manager
-   */
-  public ArtifactManager createArtifactManager()
-  {
-    if (_artifactManager == null) {
-      ArtifactManager manager = new ArtifactManager(this);
-
-      _artifactManagerRef.compareAndSet(null, manager);
-      _artifactManager = _artifactManagerRef.get();
-    }
-
-    return _artifactManager;
-  }
-
-  /**
-   * Returns the artifact manager
-   */
-  public ArtifactManager getArtifactManager()
-  {
-    return _artifactManager;
-  }
-
-  /**
    * Returns any import class, e.g. from an artifact
    */
   @Override
   protected Class<?> findImportClass(String name)
   {
-    if (_artifactManager != null)
-      return _artifactManager.findImportClass(name);
-    else
       return null;
   }
 
@@ -830,39 +696,12 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   @Override
   protected URL getImportResource(String name)
   {
-    if (_artifactManager != null)
-      return _artifactManager.getImportResource(name);
-    else
       return null;
   }
 
   @Override
   protected void buildImportClassPath(ArrayList<String> cp)
   {
-    if (_artifactManager != null)
-      _artifactManager.buildImportClassPath(cp);
-  }
-
-  /**
-   * Applies the action to all visible environment modules.  The
-   * action may apply to the same environment more than once.
-   */
-  public void applyVisibleModules(EnvironmentApply apply)
-  {
-    apply.apply(this);
-
-    for (ClassLoader parent = getParent();
-         parent != null;
-         parent = parent.getParent()) {
-      if (parent instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader env = (EnvironmentClassLoader) parent;
-        env.applyVisibleModules(apply);
-        break;
-      }
-    }
-
-    if (_artifactManager != null)
-      _artifactManager.applyVisibleModules(apply);
   }
 
   /**
@@ -879,38 +718,6 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   {
     configureEnhancerEvent();
 
-    ArrayList<ScanRoot> rootList = new ArrayList<ScanRoot>(_pendingScanRoots);
-    _pendingScanRoots.clear();
-    
-    try {
-      int rootListSize = rootList.size();
-      
-      if (_scanListeners != null && rootListSize > 0) { 
-        try {
-          make();
-        } catch (Exception e) {
-          log().log(Level.WARNING, e.toString(), e);
-
-          if (_configException == null)
-            _configException = e;
-        }
-
-        ScanManager scanManager = new ScanManager(_scanListeners);
-
-        for (int i = 0; i < rootListSize; i++) {
-          ScanRoot root = rootList.get(i);
-
-          scanManager.scan(this, root.getUrl(), root.getPackageName());
-        }
-      }
-
-      // configureEnhancerEvent();
-    } catch (Exception e) {
-      if (_configException == null)
-        _configException = e;
-      
-      throw ConfigException.create(e);
-    }
   }
 
   /**
@@ -923,16 +730,6 @@ public class EnvironmentClassLoader extends DynamicClassLoader
     ArrayList<EnvironmentListener> listeners = getEnvironmentListeners();
 
     int size = listeners.size();
-    for (int i = 0; listeners != null && i < size; i++) {
-      EnvironmentListener listener = listeners.get(i);
-
-      if (listener instanceof EnvironmentEnhancerListener) {
-        EnvironmentEnhancerListener enhancerListener
-          = (EnvironmentEnhancerListener) listener;
-
-        enhancerListener.environmentConfigureEnhancer(this);
-      }
-    }
 
     for (int i = 0; listeners != null && i < size; i++) {
       EnvironmentListener listener = listeners.get(i);
@@ -977,13 +774,7 @@ public class EnvironmentClassLoader extends DynamicClassLoader
 
     bind();
 
-    if (_artifactManager != null)
-      _artifactManager.start();
-
     startListeners();
-
-    _admin = new EnvironmentAdmin(this);
-    _admin.register();
 
     _lifecycle.toActive();
   }
@@ -1047,32 +838,10 @@ public class EnvironmentClassLoader extends DynamicClassLoader
   public void destroy()
   {
     try {
-      WeakStopListener stopListener = _stopListener;
-      _stopListener = null;
-
       super.destroy();
-
-      ClassLoader parent = getParent();
-      for (; parent != null; parent = parent.getParent()) {
-        if (parent instanceof EnvironmentClassLoader) {
-          EnvironmentClassLoader loader = (EnvironmentClassLoader) parent;
-
-          loader.removeListener(stopListener);
-        }
-      }
     } finally {
-      _owner = null;
       _attributes = null;
       _listeners = null;
-      _scanListeners = null;
-      _artifactManager = null;
-      _stopListener = null;
-
-      EnvironmentAdmin admin = _admin;
-      _admin = null;
-
-      if (admin != null)
-        admin.unregister();
     }
   }
 

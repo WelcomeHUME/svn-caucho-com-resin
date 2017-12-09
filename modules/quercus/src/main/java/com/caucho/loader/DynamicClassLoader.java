@@ -55,12 +55,10 @@ import java.util.regex.Pattern;
 
 import com.caucho.config.ConfigException;
 import com.caucho.lifecycle.Lifecycle;
-import com.caucho.loader.enhancer.EnhancerRuntimeException;
 import com.caucho.make.AlwaysModified;
 import com.caucho.make.DependencyContainer;
 import com.caucho.make.Make;
 import com.caucho.make.MakeContainer;
-import com.caucho.management.server.DynamicClassLoaderMXBean;
 import com.caucho.server.util.CauchoSystem;
 import com.caucho.util.ByteBuffer;
 import com.caucho.util.CurrentTime;
@@ -80,7 +78,7 @@ import com.caucho.vfs.ReadStream;
  * the class loader chain searches like a classpath.
  */
 public class DynamicClassLoader extends java.net.URLClassLoader
-  implements Dependency, Make, DynamicClassLoaderMXBean
+  implements Dependency, Make
 {
   private static L10N _L;
   private static Logger _log;
@@ -153,8 +151,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
   private ArrayList<ClassFileTransformer> _classFileTransformerList;
 
   private URL []_urls = NULL_URL_ARRAY;
-
-  private WeakCloseListener _closeListener;
 
   // Lifecycle
   private final Lifecycle _lifecycle = new Lifecycle();
@@ -417,9 +413,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
       _makeList.add((Make) loader);
     }
 
-    if (loader instanceof ClassLoaderListener)
-      addListener(new WeakLoaderListener((ClassLoaderListener) loader));
-    
     if (loader.isDirectoryLoader()) {
       _isDirectoryLoader = true;
     }
@@ -811,24 +804,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
       log().log(Level.WARNING, e.toString(), e);
 
       return;
-    }
-
-    WeakCloseListener closeListener = null;
-
-    if (listeners != null && listeners.size() == 0) {
-      closeListener = new WeakCloseListener(this);
-        //_closeListener = closeListener;
-    }
-
-    if (closeListener != null) {
-      for (ClassLoader parent = getParent();
-           parent != null;
-           parent = parent.getParent()) {
-        if (parent instanceof DynamicClassLoader) {
-          ((DynamicClassLoader) parent).addListener(closeListener);
-          break;
-        }
-      }
     }
 
     synchronized (listeners) {
@@ -1860,8 +1835,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
                } catch (Error e) {
                throw e;
             */
-          } catch (EnhancerRuntimeException e) {
-            throw e;
           } catch (Throwable e) {
             log().log(Level.WARNING, e.toString(), e);
           }
@@ -2323,16 +2296,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
       return;
 
     try {
-      ClassLoader parent = getParent();
-      for (; parent != null; parent = parent.getParent()) {
-        if (parent instanceof DynamicClassLoader) {
-          DynamicClassLoader loader = (DynamicClassLoader) parent;
-
-          if (_closeListener != null)
-            loader.removeListener(_closeListener);
-        }
-      }
-
       ArrayList<ClassLoaderListener> listeners = _listeners;
       _listeners = null;
 
@@ -2388,7 +2351,6 @@ public class DynamicClassLoader extends java.net.URLClassLoader
 
       _classFileTransformerList = null;
       _urls = null;
-      _closeListener = null;
 
       _lifecycle.toDestroy();
     }

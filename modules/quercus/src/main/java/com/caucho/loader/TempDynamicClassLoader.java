@@ -29,10 +29,6 @@
 
 package com.caucho.loader;
 
-import com.caucho.management.server.*;
-
-import java.security.*;
-import java.lang.instrument.*;
 import java.util.ArrayList;
 
 /**

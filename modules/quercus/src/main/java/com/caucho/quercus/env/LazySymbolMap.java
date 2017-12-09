@@ -29,20 +29,9 @@
 
 package com.caucho.quercus.env;
 
-import com.caucho.java.LineMap;
-import com.caucho.java.ScriptStackTrace;
-import com.caucho.java.WorkDir;
-import com.caucho.loader.SimpleLoader;
-import com.caucho.quercus.Location;
-import com.caucho.quercus.QuercusContext;
-import com.caucho.quercus.expr.Expr;
-import com.caucho.quercus.page.QuercusPage;
-import com.caucho.util.L10N;
 import com.caucho.util.IntMap;
-import com.caucho.vfs.WriteStream;
 
 import java.util.*;
-import java.util.logging.Logger;
 
 /**
  * Represents the Quercus environment.

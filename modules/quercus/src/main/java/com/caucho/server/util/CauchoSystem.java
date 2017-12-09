@@ -38,7 +38,6 @@ import java.util.regex.Pattern;
 import com.caucho.java.WorkDir;
 import com.caucho.loader.EnvironmentLocal;
 import com.caucho.quercus.QuercusVersion;
-import com.caucho.util.Alarm;
 import com.caucho.util.CharBuffer;
 import com.caucho.util.Crc64;
 import com.caucho.util.CurrentTime;
@@ -88,7 +87,6 @@ public class CauchoSystem {
   private static String _newline;
   private static long _version;
 
-  private static JniCauchoSystem _jniCauchoSystem;
   private static boolean _isDetailedStatistics;
   private static String _classPath;
   private static ArrayList<String> _classPathList;
@@ -451,10 +449,7 @@ public class CauchoSystem {
 
   public static double getLoadAvg()
   {
-    if (_jniCauchoSystem == null)
-      _jniCauchoSystem = JniCauchoSystem.create();
-
-    return _jniCauchoSystem.getLoadAvg();
+    return 0d;
   }
 
   public static void exitOom(Class<?> cl, Throwable e)

@@ -36,19 +36,14 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.naming.NamingException;
-
 import com.caucho.config.ConfigException;
-import com.caucho.jmx.Jmx;
 import com.caucho.lifecycle.StartLifecycleException;
 import com.caucho.log.EnvironmentStream;
 import com.caucho.log.LogManagerImpl;
-import com.caucho.naming.Jndi;
 import com.caucho.server.util.CauchoSystem;
 import com.caucho.vfs.Depend;
 import com.caucho.vfs.Dependency;
 import com.caucho.vfs.Path;
-import com.caucho.vfs.Vfs;
 
 /**
  * Static utility classes.
@@ -66,28 +61,6 @@ public class Environment {
 
   private static boolean _isInitComplete;
   
-  private static ClassLoader _systemClassLoader;
-
-  /**
-   * Returns the local environment.
-   */
-  public static EnvironmentClassLoader getEnvironmentClassLoader()
-  {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader)
-        return (EnvironmentClassLoader) loader;
-    }
-    
-    loader = getSystemClassLoader();
-    
-    if (loader instanceof EnvironmentClassLoader)
-      return (EnvironmentClassLoader) loader;
-
-    return null;
-  }
-
   /**
    * Returns the local environment.
    */
@@ -269,16 +242,6 @@ public class Environment {
     _globalLoaderListeners.add(listener);
   }
 
-  /**
-   * Add start listener.
-   *
-   * @param listener object to listen for environment create/destroy
-   * @param loader the context class loader
-   */
-  public static void addStartListener(Object obj)
-  {
-    addEnvironmentListener(new StartListener(obj));
-  }
 
   /**
    * Add close listener.
@@ -300,28 +263,6 @@ public class Environment {
   public static void addCloseListener(Object obj, ClassLoader loader)
   {
     addClassLoaderListener(new CloseListener(obj), loader);
-  }
-
-  /**
-   * Add close listener.
-   *
-   * @param listener object to listen for environment create/destroy
-   * @param loader the context class loader
-   */
-  public static void addWeakCloseListener(Object obj)
-  {
-    addClassLoaderListener(new WeakCloseListener(obj));
-  }
-
-  /**
-   * Add close listener.
-   *
-   * @param listener object to listen for environment create/destroy
-   * @param loader the context class loader
-   */
-  public static void addWeakCloseListener(Object obj, ClassLoader loader)
-  {
-    addClassLoaderListener(new WeakCloseListener(obj), loader);
   }
 
   /**
@@ -685,35 +626,6 @@ public class Environment {
   }
 
   /**
-   * Gets the class loader owner.
-   */
-  public static Object getOwner()
-  {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    return getOwner(loader);
-  }
-
-  /**
-   * Gets the class loader owner.
-   */
-  public static Object getOwner(ClassLoader loader)
-  {
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        Object owner = envLoader.getOwner();
-
-        if (owner != null)
-          return owner;
-      }
-    }
-
-    return null;
-  }
-
-  /**
    * Sets a configuration exception.
    */
   public static void setConfigException(Throwable e)
@@ -788,29 +700,6 @@ public class Environment {
     */
 
     return Thread.currentThread().getContextClassLoader().toString();
-  }
-
-  /**
-   * Apply the action to visible classloaders
-   */
-  public static void applyVisibleModules(EnvironmentApply apply)
-  {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-        envLoader.applyVisibleModules(apply);
-
-        return;
-      }
-    }
-    
-    /*
-    if (_envSystemClassLoader != null) {
-      _envSystemClassLoader.applyVisibleModules(apply);
-    }
-    */
   }
 
   /**
@@ -890,11 +779,6 @@ public class Environment {
       EnvironmentStream.setStdout(System.out);
       EnvironmentStream.setStderr(System.err);
 
-      try {
-        Vfs.initJNI();
-      } catch (Throwable e) {
-      }
-
       Properties props = System.getProperties();
 
       /*
@@ -958,11 +842,6 @@ public class Environment {
         ManagementFactory.getPlatformMBeanServer();
       }
 
-      Jndi.bindDeep("java:comp/env/jmx/MBeanServer",
-                    Jmx.getGlobalMBeanServer());
-      Jndi.bindDeep("java:comp/env/jmx/GlobalMBeanServer",
-                    Jmx.getGlobalMBeanServer());
-
       try {
         Class<?> cl = Class.forName("com.caucho.server.resin.EnvInit",
                                     false,
@@ -981,8 +860,6 @@ public class Environment {
         e.printStackTrace();
       }
       */
-    } catch (NamingException e) {
-      log().log(Level.FINE, e.toString(), e);
     } catch (Throwable e) {
       e.printStackTrace();
     } finally {
@@ -998,24 +875,5 @@ public class Environment {
       _log = Logger.getLogger(Environment.class.getName());
 
     return _log;
-  }
-  
-  private static ClassLoader getSystemClassLoader()
-  {
-    try {
-      if (_systemClassLoader == null) {
-        if (_systemClassLoader == null) {
-          _systemClassLoader = ClassLoader.getSystemClassLoader();
-          
-          if (_systemClassLoader != null)
-            _systemClassLoader = RootDynamicClassLoader.getSystemRootClassLoader();
-        }
-      }
-    } catch (Exception e) {
-      // can't log this early in startup
-      _systemClassLoader = Environment.class.getClassLoader();
-    }
-    
-    return _systemClassLoader;
   }
 }

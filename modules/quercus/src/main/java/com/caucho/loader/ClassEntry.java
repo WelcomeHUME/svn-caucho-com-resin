@@ -37,10 +37,7 @@ import java.util.logging.Logger;
 
 import com.caucho.inject.Module;
 import com.caucho.make.DependencyContainer;
-import com.caucho.util.Alarm;
 import com.caucho.util.ByteBuffer;
-import com.caucho.util.CurrentTime;
-import com.caucho.util.JniTroubleshoot;
 import com.caucho.util.L10N;
 import com.caucho.util.QDate;
 import com.caucho.vfs.Depend;
@@ -61,7 +58,6 @@ public class ClassEntry implements Dependency {
   
   private static boolean _hasJNIReload;
   private static boolean _hasAnnotations;
-  private static final JniTroubleshoot _jniTroubleshoot;
 
   private DynamicClassLoader _loader;
   private String _name;
@@ -310,9 +306,6 @@ public class ClassEntry implements Dependency {
         return false;
       }
 
-      if (cl.isAnnotationPresent(RequireReload.class))
-        return true;
-
       ReadStream is = _classPath.openRead();
 
       byte []bytecode = new byte[(int) length];
@@ -457,29 +450,4 @@ public class ClassEntry implements Dependency {
     }
   }
   
-  static {
-    JniTroubleshoot jniTroubleshoot = null;
-
-    try {
-      System.loadLibrary("resin_os");
-      _hasJNIReload = canReloadNative();
-
-      if (CurrentTime.isTest()) {
-        // skip logging for test
-      }
-      else if (_hasJNIReload)
-        log.config("In-place class redefinition (HotSwap) is available.");
-      else
-        log.config("In-place class redefinition (HotSwap) is not available.  In-place class reloading during development requires a compatible JDK and -Xdebug.");
-
-      jniTroubleshoot = new JniTroubleshoot(ClassEntry.class, "resin_os");
-    } 
-    catch (Throwable e) {
-      jniTroubleshoot = new JniTroubleshoot(ClassEntry.class, "resin_os", e);
-    }
-
-    _jniTroubleshoot = jniTroubleshoot;
-
-    _jniTroubleshoot.log();
-  }
 }

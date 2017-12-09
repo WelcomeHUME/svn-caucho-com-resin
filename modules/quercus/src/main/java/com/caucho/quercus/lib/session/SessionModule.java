@@ -43,7 +43,6 @@ import com.caucho.quercus.servlet.api.QuercusHttpServletResponse;
 import com.caucho.util.L10N;
 
 import java.util.logging.Logger;
-import java.util.Iterator;
 
 /**
  * Quercus session handling

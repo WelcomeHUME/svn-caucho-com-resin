@@ -379,33 +379,6 @@ public final class Vfs {
     return sb.toString();
   }
 
-  /**
-   * Initialize the JNI.
-   */
-  public static void initJNI()
-  {
-    if (_isInitJNI.getAndSet(true))
-      return;
-
-    // order matters because of static init and license checking
-    FilesystemPath jniFilePath = JniFilePath.create();
-
-    if (jniFilePath != null) {
-      DEFAULT_SCHEME_MAP.put("file", jniFilePath);
-
-      SchemeMap localMap = _localSchemeMap.get();
-      if (localMap != null)
-        localMap.put("file", jniFilePath);
-
-      localMap = _localSchemeMap.get(ClassLoader.getSystemClassLoader());
-      if (localMap != null)
-        localMap.put("file", jniFilePath);
-
-      Vfs.PWD = jniFilePath;
-      Vfs.setPwd(jniFilePath);
-    }
-  }
-
   static {
     DEFAULT_SCHEME_MAP = new SchemeMap();
 

@@ -52,24 +52,7 @@ public class GoogleQuercusServlet extends QuercusServlet
   @Override
   protected QuercusServletImpl getQuercusServlet(boolean isResin)
   {
-    QuercusServletImpl impl = null;
-
-    try {
-      Class<?> cls = Class.forName("com.caucho.quercus.servlet.ProGoogleQuercusServlet");
-
-      Constructor<?> ctor = cls.getConstructor(String.class);
-
-      impl = (QuercusServletImpl) ctor.newInstance(_gsBucket);
-    }
-    catch (Exception e) {
-      log.finest(e.getMessage());
-    }
-
-    if (impl == null) {
-      impl = new GoogleQuercusServletImpl(_gsBucket);
-    }
-
-    return impl;
+    return new GoogleQuercusServletImpl(_gsBucket);
   }
 
   /**

@@ -30,7 +30,6 @@
 package com.caucho.java;
 
 import com.caucho.loader.EnvironmentLocal;
-import com.caucho.util.Alarm;
 import com.caucho.util.CurrentTime;
 import com.caucho.vfs.MemoryPath;
 import com.caucho.vfs.MergePath;

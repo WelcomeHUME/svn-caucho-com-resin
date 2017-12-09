@@ -28,15 +28,8 @@
  */
 package com.caucho.config.util;
 
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.TimeUnit;
-
-import javax.ejb.ConcurrentAccessTimeoutException;
-import javax.ejb.IllegalLoopbackException;
 
 import com.caucho.loader.DynamicClassLoader;
-import com.caucho.util.L10N;
 
 /**
  * Utilities to manage locks.

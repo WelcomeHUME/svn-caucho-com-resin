@@ -36,11 +36,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.caucho.env.health.HealthSystemFacade;
-import com.caucho.env.shutdown.ExitCode;
-import com.caucho.env.shutdown.ShutdownSystem;
 import com.caucho.lifecycle.Lifecycle;
-import com.caucho.util.Alarm;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.Friend;
 import com.caucho.util.L10N;
@@ -489,8 +485,6 @@ public class ThreadPool2 implements Executor {
 
       OverflowThread item = new OverflowThread(task);
       item.start();
-      
-      HealthSystemFacade.fireEvent(THREAD_FULL_EVENT, msg);
     }
   }
 
@@ -553,8 +547,6 @@ public class ThreadPool2 implements Executor {
       
       log.warning(msg);
 
-      HealthSystemFacade.fireEvent(THREAD_FULL_EVENT, msg);
-      
       OverflowThread item = new OverflowThread(task);
       item.start();
     }
@@ -875,21 +867,10 @@ public class ThreadPool2 implements Executor {
     @Override
     protected void startWorkerThread()
     {
-      boolean isValid = false;
-      
-      try {
-        Thread thread = new Thread(this);
-        thread.setDaemon(true);
-        thread.setName("resin-thread-scheduler");
-        thread.start();
-        
-        isValid = true;
-      } finally {
-        if (! isValid) {
-          ShutdownSystem.shutdownActive(ExitCode.THREAD,
-                                         "Cannot create ThreadPool thread.");
-        }
-      }
+      Thread thread = new Thread(this);
+      thread.setDaemon(true);
+      thread.setName("resin-thread-scheduler");
+      thread.start();
     }
     
     @Override

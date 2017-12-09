@@ -29,6 +29,7 @@
 
 package com.caucho.quercus.script;
 
+import com.caucho.quercus.QuercusVersion;
 import javax.script.Bindings;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -58,16 +59,7 @@ public class QuercusScriptEngineFactory implements ScriptEngineFactory
    */
   public String getEngineVersion()
   {
-    try {
-      Class<?> cl = Class.forName("com.caucho.Version");
-      Field version = cl.getField("VERSION");
-
-      return (String) version.get(null);
-    }
-    catch (Exception e) {
-    }
-
-    return "Resin/4.x";
+    return QuercusVersion.getVersionNumber();
   }
 
   /**

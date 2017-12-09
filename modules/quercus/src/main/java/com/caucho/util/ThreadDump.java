@@ -32,9 +32,8 @@ package com.caucho.util;
 import java.lang.management.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.caucho.config.ConfigException;
 
 /**
  * Generate a thread dump
@@ -64,10 +63,8 @@ public class ThreadDump
         threadDump = (ThreadDump) threadDumpClass.newInstance();
       } catch (ClassNotFoundException e) {
         threadDump = new ThreadDump();
-      } catch (ConfigException e) {
-        threadDump = new ThreadDump();
-      } catch (Exception e) {
-        throw ConfigException.create(e);
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
       }
       
       _threadDumpRef.compareAndSet(null, threadDump);

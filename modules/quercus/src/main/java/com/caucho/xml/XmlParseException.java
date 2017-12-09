@@ -29,9 +29,6 @@
 package com.caucho.xml;
 
 import com.caucho.config.*;
-import com.caucho.util.LineCompileException;
-
-import org.xml.sax.SAXException;
 
 public class XmlParseException extends LineConfigException
 {

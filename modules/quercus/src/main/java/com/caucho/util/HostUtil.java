@@ -38,8 +38,6 @@ import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.caucho.config.ConfigException;
-
 /**
  * Host/Inet utilities.
  */
@@ -56,8 +54,6 @@ public final class HostUtil {
       return InetAddress.getLocalHost().getCanonicalHostName();
     } catch (UnknownHostException e) {
       log.log(Level.FINER, e.toString(), e);
-    } catch (Exception e) {
-      throw ConfigException.create(e);
     }
     
     for (InetAddress addr : getLocalAddresses()) {

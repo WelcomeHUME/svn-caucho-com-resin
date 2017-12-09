@@ -116,35 +116,7 @@ public class QuercusServlet
 
   protected QuercusServletImpl getQuercusServlet(boolean isResin)
   {
-    QuercusServletImpl impl = null;
-
-    if (isResin) {
-      try {
-        Class<?> cls = Class.forName("com.caucho.quercus.servlet.ProResinQuercusServlet");
-        Constructor<?> cons = cls.getConstructor(File.class);
-
-        impl = (QuercusServletImpl) cons.newInstance(_licenseDirectory);
-      }
-      catch (Exception e) {
-        log.log(Level.FINEST, e.getMessage(), e);
-      }
-    }
-
-    if (impl == null) {
-      try {
-        Class<?> cls = Class.forName("com.caucho.quercus.servlet.ProQuercusServlet");
-        Constructor<?> cons = cls.getConstructor(File.class);
-
-        impl = (QuercusServletImpl) cons.newInstance(_licenseDirectory);
-      }
-      catch (Exception e) {
-        log.log(Level.FINEST, e.getMessage(), e);
-      }
-    }
-
-    if (impl == null) {
-      impl = new QuercusServletImpl();
-    }
+    QuercusServletImpl impl = new QuercusServletImpl();
 
     return impl;
   }

@@ -38,8 +38,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.caucho.env.thread.TaskWorker;
-import com.caucho.env.warning.WarningService;
-import com.caucho.loader.Environment;
 
 /**
  * A generic pool of threads available for Alarms and Work tasks.
@@ -47,7 +45,7 @@ import com.caucho.loader.Environment;
 abstract public class AbstractTaskWorker2
   implements Runnable, TaskWorker, Closeable
 {
-  private static Logger _log;
+  private static Logger _log = Logger.getLogger(AbstractTaskWorker2.class.getName());
   
   private static final long PERMANENT_TIMEOUT = 30000L;
   
@@ -70,7 +68,6 @@ abstract public class AbstractTaskWorker2
     _classLoaderRef = new WeakReference<ClassLoader>(classLoader);
     
     if (isWeakClose()) {    
-      Environment.addWeakCloseListener(this, classLoader);
     }
   }
   
@@ -285,8 +282,7 @@ abstract public class AbstractTaskWorker2
                || isRetry());
     } catch (Throwable e) {
       System.out.println("EXN: " + e);
-      WarningService.sendCurrentWarning(this, e);
-      log().log(Level.WARNING, e.toString(), e);
+      _log.log(Level.WARNING, e.toString(), e);
     } finally {
       _thread = null;
       
@@ -331,15 +327,6 @@ abstract public class AbstractTaskWorker2
     // return CurrentTime.getCurrentTimeActual();
     
     return System.currentTimeMillis();
-  }
-  
-  private Logger log()
-  {
-    if (_log == null) {
-      _log = Logger.getLogger(AbstractTaskWorker2.class.getName()); 
-    }
-    
-    return _log;
   }
 
   @Override

@@ -32,9 +32,6 @@ package com.caucho.env.thread2;
 import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Logger;
 
-import com.caucho.env.health.HealthSystemFacade;
-import com.caucho.env.shutdown.ExitCode;
-import com.caucho.env.shutdown.ShutdownSystem;
 import com.caucho.inject.Module;
 
 @Module
@@ -65,21 +62,10 @@ class ThreadLauncher2 extends AbstractThreadLauncher2 {
   @Override
   protected void startWorkerThread()
   {
-    boolean isValid = false;
-    
-    try {
-      Thread thread = new Thread(this);
-      thread.setDaemon(true);
-      thread.setName("resin-thread-launcher2");
-      thread.start();
-      
-      isValid = true;
-    } finally {
-      if (! isValid) {
-        ShutdownSystem.shutdownActive(ExitCode.THREAD,
-                                       "Cannot create ThreadPool thread.");
-      }
-    }
+    Thread thread = new Thread(this);
+    thread.setDaemon(true);
+    thread.setName("resin-thread-launcher2");
+    thread.start();
   }
   
   @Override
@@ -91,21 +77,8 @@ class ThreadLauncher2 extends AbstractThreadLauncher2 {
   @Override
   protected void launchChildThread(int id)
   {
-    try {
       ResinThread2 poolThread = new ResinThread2(id, _pool, this);
       poolThread.start();
-    } catch (Throwable e) {
-      e.printStackTrace();
-
-      String msg = "Resin exiting because of failed thread";
-      
-      try {
-        msg = msg + ": " + e;
-      } catch (Throwable e1) {
-      }
-
-      ShutdownSystem.shutdownActive(ExitCode.THREAD, msg);
-    }
   }
   
   @Override
@@ -120,17 +93,12 @@ class ThreadLauncher2 extends AbstractThreadLauncher2 {
   @Override
   protected void onThreadMax()
   {
-    HealthSystemFacade.fireEvent(THREAD_FULL_EVENT, 
-                                 "threads=" + getThreadCount());
   }
 
   @Override
   protected void onThrottle(String msg)
   {
     log.warning(msg);
-    
-    HealthSystemFacade.fireEvent(THREAD_CREATE_THROTTLE_EVENT, 
-                                 msg);
   }
   
   @Override
