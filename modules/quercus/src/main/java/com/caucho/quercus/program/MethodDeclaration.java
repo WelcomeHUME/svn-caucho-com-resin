@@ -56,11 +56,13 @@ public class MethodDeclaration extends Function
                            ClassDef qClass,
                            String name,
                            FunctionInfo info,
-                           Arg []argList)
+                           Arg []argList,
+                           String returnType)
   {
     super(exprFactory, location,
           name, info, argList,
-          new Statement[0]);
+          new Statement[0],
+          returnType);
 
     _qClass = qClass;
   }

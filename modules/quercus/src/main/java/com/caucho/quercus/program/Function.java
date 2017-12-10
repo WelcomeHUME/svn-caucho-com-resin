@@ -60,6 +60,7 @@ public class Function extends AbstractFunction {
   protected final String _name;
   protected final Arg []_args;
   protected final Statement _statement;
+  protected final String _returnType;
 
   protected boolean _hasReturn;
 
@@ -72,7 +73,8 @@ public class Function extends AbstractFunction {
                   String name,
                   FunctionInfo info,
                   Arg []args,
-                  Statement []statements)
+                  Statement []statements,
+                  String returnType)
   {
     super(location);
 
@@ -91,6 +93,7 @@ public class Function extends AbstractFunction {
     setClosure(info.isClosure());
 
     _isStatic = true;
+    _returnType = returnType;
   }
 
   /**
@@ -484,6 +487,10 @@ public class Function extends AbstractFunction {
     // return _info.isVariableVar();
     // php/3254
     return _info.isUsesSymbolTable() || _info.isVariableVar();
+  }
+
+  public String getReturnType() {
+    return _returnType;
   }
 
   public String toString()

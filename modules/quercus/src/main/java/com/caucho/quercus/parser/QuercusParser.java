@@ -621,7 +621,8 @@ public class QuercusParser {
                                            name,
                                            _function,
                                            args,
-                                           statements);
+                                           statements,
+                                           null);
 
     close();
 
@@ -1840,12 +1841,15 @@ public class QuercusParser {
 
       Function function;
 
+      String returnType = parseReturnType();
+      
       if (isAbstract) {
         expect(';');
 
         function = _factory.createMethodDeclaration(location,
                                                     _classDef, name,
-                                                    _function, args);
+                                                    _function, args,
+                                                    returnType);
       }
       else {
         expect('{');
@@ -1866,11 +1870,13 @@ public class QuercusParser {
           function = _factory.createObjectMethod(location,
                                                  _classDef,
                                                  name, _function,
-                                                 args, statements);
+                                                 args, statements,
+                                                 returnType);
         else
           function = _factory.createFunction(location, name,
                                              _function, args,
-                                             statements);
+                                             statements,
+                                             returnType);
       }
 
       function.setGlobal(oldTop);
@@ -1903,6 +1909,17 @@ public class QuercusParser {
     }
   }
 
+  private String parseReturnType() throws IOException {
+    int token = parseToken();
+    
+    if(token != ':') {
+      _peekToken = token;
+      return null;
+    } else {
+      return parseNamespaceIdentifier().toString();
+    }
+  }
+  
   /**
    * Parses a function definition
    */
@@ -1972,6 +1989,8 @@ public class QuercusParser {
         _peekToken = token;
       }
 
+      String returnType = parseReturnType();
+      
       expect('{');
 
       Statement []statements = null;
@@ -1988,7 +2007,8 @@ public class QuercusParser {
 
       Function function = _factory.createFunction(location, name,
                                                   _function, args,
-                                                  statements);
+                                                  statements,
+                                                  returnType);
 
       function.setParseIndex(_functionsParsed++);
       function.setComment(comment);

@@ -1641,9 +1641,10 @@ public class ExprFactory {
                                  String name,
                                  FunctionInfo info,
                                  Arg []argList,
-                                 Statement []statementList)
+                                 Statement []statementList,
+                                 String returnType)
   {
-    return new Function(this, loc, name, info, argList, statementList);
+    return new Function(this, loc, name, info, argList, statementList, returnType);
   }
 
   /**
@@ -1654,9 +1655,10 @@ public class ExprFactory {
                                      String name,
                                      FunctionInfo info,
                                      Arg []argList,
-                                     Statement []statementList)
+                                     Statement []statementList,
+                                     String returnType)
   {
-    return new ObjectMethod(this, loc, cl, name, info, argList, statementList);
+    return new ObjectMethod(this, loc, cl, name, info, argList, statementList, returnType);
   }
 
   /**
@@ -1666,9 +1668,10 @@ public class ExprFactory {
                                           InterpretedClassDef cl,
                                           String name,
                                           FunctionInfo info,
-                                          Arg []argList)
+                                          Arg []argList,
+                                          String returnType)
   {
-    return new MethodDeclaration(this, loc, cl, name, info, argList);
+    return new MethodDeclaration(this, loc, cl, name, info, argList, returnType);
   }
 
   public InterpretedClassDef createClassDef(Location location,

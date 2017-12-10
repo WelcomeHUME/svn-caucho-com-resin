@@ -53,9 +53,10 @@ public class ObjectMethod extends Function {
                       String name,
                       FunctionInfo info,
                       Arg []argList,
-                      Statement []statementList)
+                      Statement []statementList,
+                      String returnType)
   {
-    super(exprFactory, location, name, info, argList, statementList);
+    super(exprFactory, location, name, info, argList, statementList, returnType);
     _quercusClass = quercusClass;
   }
 
