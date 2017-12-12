@@ -31,7 +31,6 @@ package com.caucho.make;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.caucho.loader.Environment;
 import com.caucho.util.CurrentTime;
 import com.caucho.vfs.Dependency;
 
@@ -45,7 +44,7 @@ abstract public class CachedDependency implements Dependency {
 
   public CachedDependency()
   {
-    setCheckInterval(Environment.getDependencyCheckInterval());
+    setCheckInterval(60 * 1000L);
   }
   
   /**

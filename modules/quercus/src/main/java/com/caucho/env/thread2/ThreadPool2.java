@@ -36,7 +36,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.caucho.lifecycle.Lifecycle;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.Friend;
 import com.caucho.util.L10N;
@@ -70,7 +69,6 @@ public class ThreadPool2 implements Executor {
   private final String _name;
   
   private final ThreadLauncher2 _launcher;
-  private final Lifecycle _lifecycle = new Lifecycle();
   
   private final ThreadScheduleWorker _scheduleWorker
     = new ThreadScheduleWorker();
@@ -667,16 +665,7 @@ public class ThreadPool2 implements Executor {
     // _unparkQueue.put(thread);
     // _scheduleWorker.wake();
   }
-  
-  //
-  // lifecycle methods
-  //
 
-  boolean isActive()
-  {
-    return _lifecycle.isActive();
-    
-  }
   /**
    * Resets the thread pool, letting old threads drain.
    */
@@ -711,7 +700,6 @@ public class ThreadPool2 implements Executor {
     if (this == _globalThreadPool.get())
       throw new IllegalStateException(L.l("Cannot close global thread pool"));
     
-    _lifecycle.toDestroy();
     _launcher.close();
     _scheduleWorker.close();
     

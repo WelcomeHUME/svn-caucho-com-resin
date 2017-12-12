@@ -68,22 +68,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public E get()
   {
-    Thread thread = Thread.currentThread();
-    ClassLoader loader = thread.getContextClassLoader();
-
-    Object value = null;
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        value = envLoader.getAttribute(_varName);
-
-        if (value != null)
-          return (E) value;
-      }
-    }
-
     return _globalValue;
   }
 
@@ -93,19 +77,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public E get(ClassLoader loader)
   {
-    Object value = null;
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        value = envLoader.getAttribute(_varName);
-
-        if (value != null)
-          return (E) value;
-      }
-    }
-
     return _globalValue;
   }
 
@@ -115,17 +86,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public E getLevel()
   {
-    Thread thread = Thread.currentThread();
-    ClassLoader loader = thread.getContextClassLoader();
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.getAttribute(_varName);
-      }
-    }
-
     return _globalValue;
   }
 
@@ -135,14 +95,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public E getLevel(ClassLoader loader)
   {
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.getAttribute(_varName);
-      }
-    }
-
     return _globalValue;
   }
 
@@ -157,17 +109,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public final E set(E value)
   {
-    Thread thread = Thread.currentThread();
-    ClassLoader loader = thread.getContextClassLoader();
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.setAttribute(_varName, value);
-      }
-    }
-
     return setGlobal(value);
   }
 
@@ -182,14 +123,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public final E set(E value, ClassLoader loader)
   {
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.setAttribute(_varName, value);
-      }
-    }
-
     return setGlobal(value);
   }
 
@@ -201,17 +134,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public final E remove()
   {
-    Thread thread = Thread.currentThread();
-    ClassLoader loader = thread.getContextClassLoader();
-
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.removeAttribute(_varName);
-      }
-    }
-
     return setGlobal(null);
   }
 
@@ -223,14 +145,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public final E remove(ClassLoader loader)
   {
-    for (; loader != null; loader = loader.getParent()) {
-      if (loader instanceof EnvironmentClassLoader) {
-        EnvironmentClassLoader envLoader = (EnvironmentClassLoader) loader;
-
-        return (E) envLoader.removeAttribute(_varName);
-      }
-    }
-
     return setGlobal(null);
   }
 
@@ -248,13 +162,6 @@ public class EnvironmentLocal<E> {
 
     _globalValue = value;
 
-    ClassLoader systemLoader = getSystemClassLoader();
-
-    if (systemLoader instanceof EnvironmentClassLoader)
-      ((EnvironmentClassLoader) systemLoader).setAttribute(_varName, value);
-    else
-      _globalValue = value;
-
     return oldValue;
   }
 
@@ -264,11 +171,6 @@ public class EnvironmentLocal<E> {
   @SuppressWarnings("unchecked")
   public E getGlobal()
   {
-    ClassLoader systemLoader = getSystemClassLoader();
-
-    if (systemLoader instanceof EnvironmentClassLoader)
-      return (E) ((EnvironmentClassLoader) systemLoader).getAttribute(_varName);
-    else
       return _globalValue;
   }
 

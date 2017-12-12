@@ -29,7 +29,6 @@
 
 package com.caucho.vfs;
 
-import com.caucho.loader.DynamicClassLoader;
 import com.caucho.make.DependencyList;
 import com.caucho.server.util.CauchoSystem;
 
@@ -226,66 +225,7 @@ public class MergePath extends FilesystemPath {
    */
   public void addClassPath()
   {
-    addClassPath(Thread.currentThread().getContextClassLoader());
-  }
-
-  /**
-   * Adds the classpath for the loader as paths in the MergePath.
-   *
-   * @param loader class loader whose classpath should be used to search.
-   */
-  public void addClassPath(ClassLoader loader)
-  {
-    String classpath = null;
-
-    if (loader instanceof DynamicClassLoader)
-      classpath = ((DynamicClassLoader) loader).getClassPath();
-    else
-      classpath = CauchoSystem.getClassPath();
-
-    addClassPath(classpath);
-  }
-
-  /**
-   * Adds the classpath for the loader as paths in the MergePath.
-   *
-   * @param loader class loader whose classpath should be used to search.
-   */
-  public void addResourceClassPath(ClassLoader loader)
-  {
-    String classpath = null;
-
-    if (loader instanceof DynamicClassLoader)
-      classpath = ((DynamicClassLoader) loader).getResourcePathSpecificFirst();
-    else
-      classpath = CauchoSystem.getClassPath();
-
-    addClassPath(classpath);
-  }
-
-  /**
-   * Adds the classpath as paths in the MergePath.
-   */
-  public void addLocalClassPath()
-  {
-    addLocalClassPath(Thread.currentThread().getContextClassLoader());
-  }
-
-  /**
-   * Adds the classpath for the loader as paths in the MergePath.
-   *
-   * @param loader class loader whose classpath should be used to search.
-   */
-  public void addLocalClassPath(ClassLoader loader)
-  {
-    String classpath = null;
-
-    if (loader instanceof DynamicClassLoader)
-      classpath = ((DynamicClassLoader) loader).getLocalClassPath();
-    else
-      classpath = System.getProperty("java.class.path");
-
-    addClassPath(classpath);
+    addClassPath(CauchoSystem.getClassPath());
   }
 
   /**

@@ -41,11 +41,8 @@ import com.caucho.config.ConfigException;
 import com.caucho.quercus.QuercusContext;
 import com.caucho.quercus.env.Env;
 import com.caucho.quercus.env.SessionArrayValue;
-import com.caucho.util.Alarm;
-import com.caucho.util.AlarmListener;
 import com.caucho.util.Base64;
 import com.caucho.util.CharBuffer;
-import com.caucho.util.CurrentTime;
 import com.caucho.util.L10N;
 import com.caucho.util.LruCache;
 import com.caucho.util.RandomUtil;
@@ -55,7 +52,6 @@ import com.caucho.util.RandomUtil;
  * customized to PHP instead of J2EE sessions.
  */
 public class QuercusSessionManager
-  implements AlarmListener
 {
   private static final L10N L = new L10N(QuercusSessionManager.class);
   private static final Logger log
@@ -494,60 +490,6 @@ public class QuercusSessionManager
     }
 
     return false;
-  }
-
-  /**
-   * Timeout for reaping old sessions.
-   */
-  public void handleAlarm(Alarm alarm)
-  {
-    try {
-      _sessionList.clear();
-
-      int liveSessions = 0;
-
-      if (_isClosed)
-        return;
-
-      long now = CurrentTime.getCurrentTime();
-
-      synchronized (_sessions) {
-        _sessionIter = _sessions.values(_sessionIter);
-
-        while (_sessionIter.hasNext()) {
-          SessionArrayValue session = _sessionIter.next();
-
-          long maxIdleTime = session.getMaxInactiveInterval();
-
-          if (session.inUse())
-            liveSessions++;
-          else if (session.getAccessTime() + maxIdleTime < now)
-            _sessionList.add(session);
-          else
-            liveSessions++;
-        }
-      }
-
-      synchronized (_statisticsLock) {
-        _sessionTimeoutCount += _sessionList.size();
-      }
-
-      for (int i = 0; i < _sessionList.size(); i++) {
-        SessionArrayValue session = _sessionList.get(i);
-
-        try {
-          long maxIdleTime = session.getMaxInactiveInterval();
-          _sessions.remove(session.getId());
-
-          session.invalidate();
-        } catch (Throwable e) {
-          log.log(Level.FINER, e.toString(), e);
-        }
-      }
-    } finally {
-      if (! _isClosed)
-        alarm.queue(60000);
-    }
   }
 
   /**

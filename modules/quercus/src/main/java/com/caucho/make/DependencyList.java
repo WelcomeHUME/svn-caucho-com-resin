@@ -29,9 +29,6 @@
 
 package com.caucho.make;
 
-import com.caucho.loader.DynamicClassLoader;
-import com.caucho.util.Alarm;
-import com.caucho.util.Log;
 import com.caucho.vfs.PersistentDependency;
 import com.caucho.vfs.Dependency;
 

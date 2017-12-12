@@ -32,7 +32,6 @@ package com.caucho.util;
 import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Logger;
 
-import com.caucho.loader.DynamicClassLoader;
 
 /**
  * The CurrentTime class returns the current system time.
@@ -146,29 +145,6 @@ public class CurrentTime {
       // Thread.yield();
     }
   }
-  
-  static void setTestTime(long time)
-  {
-    _testTime = time;
-
-    if (_testTime > 0) {
-      if (time < _currentTime) {
-        Alarm.testClear();
-      }
-
-      _currentTime = time;
-    }
-    else {
-      _currentTime = System.currentTimeMillis();
-    }
-    
-    Alarm.setAlarmTestTime(time);
-  }
-  
-  static void testClear()
-  {
-    Alarm.testClear();
-  }
 
   static void setTestNanoDelta(long delta)
   {
@@ -256,7 +232,6 @@ public class CurrentTime {
 
       if (isAlarmStart
           || loader == null
-          || loader instanceof DynamicClassLoader
           || loader == systemLoader
           || systemLoader != null && loader == systemLoader.getParent()) {
         currentTimeThread = new CurrentTimeThread();

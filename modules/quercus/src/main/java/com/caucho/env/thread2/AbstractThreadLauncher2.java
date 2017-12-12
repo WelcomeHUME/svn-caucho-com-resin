@@ -35,10 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.caucho.config.ConfigException;
-import com.caucho.env.thread.ThreadPool;
 import com.caucho.inject.Module;
-import com.caucho.lifecycle.Lifecycle;
-import com.caucho.util.Alarm;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.L10N;
 import com.caucho.util.ThreadDump;
@@ -92,8 +89,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
   
   private final AtomicInteger _gId = new AtomicInteger();
   
-  private final Lifecycle _lifecycle;
-
   protected AbstractThreadLauncher2()
   {
     this(Thread.currentThread().getContextClassLoader());
@@ -104,8 +99,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
     super(loader);
     
     setWorkerIdleTimeout(LAUNCHER_TIMEOUT);
-    
-    _lifecycle = new Lifecycle();
   }
   
   //
@@ -215,11 +208,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
     return _idleTimeout;
   }
   
-  protected boolean isEnable()
-  {
-    return _lifecycle.isActive();
-  }
-  
   //
   // Throttle configuration
   //
@@ -254,8 +242,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
   
   public void start()
   {
-    _lifecycle.toActive();
-    
     wake();
   }
   
@@ -263,8 +249,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
   public void close()
   {
     super.close();
-    
-    _lifecycle.toDestroy();
   }
   
   //
@@ -359,9 +343,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
    */
   public boolean isIdleExpire()
   {
-    if (! _lifecycle.isActive())
-      return true;
-    
     long now = getCurrentTimeActual();
     
     long idleExpire = _threadIdleExpireTime.get();
@@ -468,12 +449,6 @@ abstract public class AbstractThreadLauncher2 extends AbstractTaskWorker2 {
    */
   protected boolean doStart()
   {
-    if (! _lifecycle.isActive())
-      return false;
-    
-    if (! isEnable())
-      return false;
-    
     int startingCount = _startingCount.getAndIncrement();
 
     int threadCount = _threadCount.get() + startingCount;
