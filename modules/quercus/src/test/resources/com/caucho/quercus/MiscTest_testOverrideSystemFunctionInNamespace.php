@@ -5,12 +5,12 @@ namespace Test {
 	}
 	class Test {
 		public function test() {
-			assert(file_exists("name") === 'overriden_method');
+			return file_exists("name");
 		}
 	}
 }
 
 namespace {
 	$test = new Test\Test();
-	$test->test();
+	return $test->test();
 }

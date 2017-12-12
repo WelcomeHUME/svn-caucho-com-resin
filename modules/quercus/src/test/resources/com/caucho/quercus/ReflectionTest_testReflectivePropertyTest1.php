@@ -36,6 +36,4 @@ $child->setParent($parent2);
 $property = new ReflectionProperty('ParentClass', 'parent');
 $property->setAccessible(true);
 $property->setValue($child, $parent1);
-assert('parent2' == $child->getParent()->name, 'parent value of ParentClass should be changed, not of ChildClass');
-
-?>
+return $child->getParent()->name;
