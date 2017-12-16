@@ -271,7 +271,11 @@ public class JavaValue extends ObjectValue
   @Override
   public boolean issetField(Env env, StringValue name)
   {
-    return _classDef.issetField(env, _object, name);
+    if(_classDef.hasIssetDefinition()) {
+      return _classDef.issetField(env, _object, name);
+    } else {
+      return super.issetField(env, name);
+    }
   }
 
   public Set<? extends Map.Entry<Value, Value>> entrySet()

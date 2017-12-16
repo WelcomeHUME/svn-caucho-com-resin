@@ -1472,6 +1472,10 @@ public class JavaClassDef extends ClassDef implements InstanceInitializer {
       throw new QuercusRuntimeException(e);
     }
   }
+  
+  public boolean hasIssetDefinition() {
+    return _isset != null;
+  }
 
   public boolean jsonEncode(Env env,
                             Object obj,

@@ -165,4 +165,8 @@ All is revealed in this thrilling horror spoof of a documentary.]]></plot>
 </movies>
 EOT;
 
-return XML2Array::createArray($xml);
+$array = XML2Array::createArray($xml);
+
+// var_dump($array);
+
+return $array;
