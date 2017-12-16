@@ -1230,7 +1230,7 @@ public final class HttpServletRequestImpl extends AbstractCauchoRequest
    */
   @Override
   public void logout()
-  {
+  {    
     Login login = getLogin();
 
     if (login != null) {
@@ -1741,12 +1741,12 @@ public final class HttpServletRequestImpl extends AbstractCauchoRequest
         }
       }
     }
-    
-    _cookiesIn = null;
-    _request = null;
 
     // server/1lg0
     _response.closeImpl();
+    
+    _cookiesIn = null;
+    _request = null;
   }
 
   public void cleanup()
