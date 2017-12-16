@@ -1,5 +1,5 @@
 Class-Path: javaee-16.jar pro.jar webservices-api.jar
 Implementation-Vendor: Caucho Technology, Inc.
-Implementation-Version: 4.0.54
+Implementation-Version: 4.0.55
 J2EE-DeploymentFactory-Implementation-Class: com.caucho.j2ee.deployclient.DeploymentFactoryImpl
 Main-Class: com.caucho.boot.ResinBoot

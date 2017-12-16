@@ -179,7 +179,6 @@ import com.caucho.server.http.StubSessionContextRequest;
 import com.caucho.server.httpcache.AbstractProxyCache;
 import com.caucho.server.log.AbstractAccessLog;
 import com.caucho.server.log.AccessLog;
-import com.caucho.server.resin.Resin;
 import com.caucho.server.rewrite.RewriteDispatch;
 import com.caucho.server.security.ConstraintManager;
 import com.caucho.server.security.LoginConfig;
@@ -574,6 +573,11 @@ public class WebApp extends ServletContextImpl
 
       _jspApplicationContext = new JspApplicationContextImpl(this);
       _jspApplicationContext.addELResolver(_cdiManager.getELResolver());
+      
+      ServletService servletManager = _controller.getWebManager();
+      if (servletManager != null) {
+        _shutdownWaitTime = servletManager.getShutdownWaitMax();
+      }
 
       // validation
       if (CauchoSystem.isTesting()) {
@@ -2611,12 +2615,12 @@ public class WebApp extends ServletContextImpl
   {
     _shutdownWaitTime = wait.getPeriod();
 
-    Resin resin = Resin.getCurrent();
-    if (resin != null &&
-        resin.getShutdownWaitMax() < _shutdownWaitTime) {
+    ServletService server = _controller.getWebManager();
+    if (server != null &&
+        server.getShutdownWaitMax() < _shutdownWaitTime) {
       log.warning(L.l("web-app shutdown-wait-max '{0}' is longer than resin shutdown-wait-max '{1}'.",
                       _shutdownWaitTime,
-                      resin.getShutdownWaitMax()));
+                      server.getShutdownWaitMax()));
     }
   }
 
@@ -2820,7 +2824,7 @@ public class WebApp extends ServletContextImpl
       */
 
       // server/5030
-      _cdiManager.addBeanDiscover(_cdiManager.createManagedBean(WebServiceContextProxy.class));
+      addWebServiceContextProxy();
 
       /*
       _beanManager.addObserver(new WebBeansObserver(),
@@ -2879,6 +2883,19 @@ public class WebApp extends ServletContextImpl
       }
     } finally {
       _lifecycle.toInit();
+    }
+  }
+  
+  private void addWebServiceContextProxy()
+  {
+    try {
+      Class<?> cl = Class.forName("javax.xml.ws.WebServiceContext");
+      
+      if (cl != null) {
+        _cdiManager.addBeanDiscover(_cdiManager.createManagedBean(WebServiceContextProxy.class));
+      }
+    } catch (Exception e) {
+      log.log(Level.FINER, e.toString(), e);
     }
   }
   

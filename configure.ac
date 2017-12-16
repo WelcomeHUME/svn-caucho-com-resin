@@ -1,4 +1,4 @@
-AC_INIT([resin],4.0.54)
+AC_INIT([resin],4.0.55)
 AC_CONFIG_AUX_DIR(automake)
 #AC_CONFIG_MACRO_DIR([m4])
 
@@ -777,26 +777,6 @@ if test -z "${apache_ldflags_shlib}"; then
      echo "Using shared library flags from ${apxs}"
   fi
 fi
-
-#
-# Java 1.6 check
-#
-
-echo $ECHO_N "checking if ${JAVA_EXE} is Java 1.6... "
-
-tmpname="/tmp/java$$.out"
-$JAVA_EXE -version 2> $tmpname
-
-grep "1\.@<:@678]" $tmpname 1> /dev/null
-if test "$?" != "0"; then
-  echo "no"
-  java_version=`cat $tmpname`
-  AC_MSG_ERROR([Java 1.6 required. ${JAVA_EXE} returned: ${java_version}])
-fi
-
-echo "yes"
-
-rm -f $tmpname
 
 #
 # 64bit heuristics

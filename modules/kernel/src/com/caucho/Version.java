@@ -33,9 +33,9 @@ final public class Version {
   public static final String COPYRIGHT =
     "Copyright(c) 1998-2012 Caucho Technology.  All rights reserved.";
 
-  public static String FULL_VERSION = "Resin-4.0.54 (built Tue, 03 Oct 2017 01:43:03 PDT)";
-  public static String VERSION = "4.0.54";
-  public static String VERSION_DATE = "20171003T014303";
+  public static String FULL_VERSION = "Resin-4.0.55 (built Wed, 29 Nov 2017 03:07:16 PST)";
+  public static String VERSION = "4.0.55";
+  public static String VERSION_DATE = "20171129T030716";
 
   public static void main(String []argv)
   {
