@@ -1,4 +1,4 @@
-AC_INIT([resin],4.0.49)
+AC_INIT([resin],4.0.52)
 AC_CONFIG_AUX_DIR(automake)
 #AC_CONFIG_MACRO_DIR([m4])
 
@@ -600,7 +600,19 @@ fi
 # test posix shared memory
 #
 
+#
+# --enable-mod_caucho_shm
+#
+AC_ARG_ENABLE(mod_caucho_shm,
+[AS_HELP_STRING([--enable-mod_caucho_shm], [Enable shared memory state for mod_caucho])],
+[case "${enableval}" in
+ yes) mod_caucho_shm=true ;;
+ no)  mod_caucho_shm=false ;;
+ *) AC_MSG_ERROR(bad value ${enableval} for --enable-mod_caucho_shm) ;;
+ esac],[])
+
 if test -n "${apache_dir}"; then
+if test "${mod_caucho_shm}" == "true"; then
 
 cat >conftest.$ac_ext <<_ACEOF
 #include <stdlib.h>
@@ -636,6 +648,9 @@ else
   AC_MSG_WARN(mod_caucho will not use shared between processes srun status)
 fi
 rm -f conftest conftest.$ac_ext
+else
+ AC_MSG_WARN(Shared memory for mod_caucho disabled $apache_shm)
+fi
 fi
 
 #

@@ -258,6 +258,12 @@ public class Resin
   public void setIgnoreLock(boolean isIgnoreLock)
   {
     _isIgnoreLock = isIgnoreLock;
+    
+    RootDirectorySystem subSystem = RootDirectorySystem.getCurrent();
+    
+    if (subSystem != null) {
+      subSystem.setIgnoreLock(isIgnoreLock);
+    }
   }
 
   /**
@@ -975,8 +981,9 @@ public class Resin
     String licenseErrorMessage = getDelegate().getLicenseErrorMessage();
 
     if (licenseErrorMessage != null) {
-      log().warning(licenseErrorMessage);
       System.err.println(licenseErrorMessage);
+      System.err.flush();
+      log().warning(licenseErrorMessage);
     }
 
     System.out.println("Starting " + getResinName()
@@ -1043,7 +1050,7 @@ public class Resin
     Path dataDirectory = getServerDataDirectory();
 
     RootDirectorySystem system
-      = RootDirectorySystem.createAndAddService(_rootDirectory, dataDirectory);
+    = RootDirectorySystem.createAndAddService(_rootDirectory, dataDirectory);
     
     system.setIgnoreLock(_isIgnoreLock);
   }

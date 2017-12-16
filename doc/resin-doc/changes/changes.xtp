@@ -6,7 +6,56 @@
 
 <s1 title="Resin Change Log">
 
-<s2 title="4.0.49 - in progress">
+<s2 title="4.0.52 - in progress">
+<ul>
+<li>apache: reencode 0x0d for uri in mod_caucho</li>
+<li>jsse: set default JSSE settings to higher levels (#6051, rep by VasumathiN)</li>
+<li>jmx: issues with queries and wildcards (#6041, rep by kpokrovsky)</li>
+<li>health: need finally, and catching of exception</li>
+<li>jsp: analysis of InvokeDynamic (#6037, rep by alpor9)</li>
+<li>database: validation of database file extension size (#6045, rep by Shinomiya Nobuaki)</li>
+<li>rollover: multiple rollover configuration not properly update (#6033, rep by Shinomiya Nobuaki)</li>
+<li>access.log: multiple &lt;access-log> not properly handled (#5920)</li>
+<li>getResource: return "file:" url for normal resource in getResource (#6049)</li>
+<li>db-pool: min-idle-count registered with transaction</li>
+<li>database: meta-allocation-table write issues (#6046)</li>
+<li>database: free row allocation performance issues (#6044)</li>
+<li>access.log: possible corruption by multithreading (#6038)</li>
+<li>classloader: relative path validation for getResource (rep by Steffen Busch)</li>
+<li>servlet: strip path parameters from getPathInfo CVE-2016-9879 (#6036, rep by mtryhoen2</li>
+<li>rewrite: rewrite in host with resin:IfXXX adds extra log (#5943, rep by stbu)</li>
+<li>session: session.refCount issues with forward and loaded session (#6039, rep by Shinomiya Nobuaki)</li>
+</ul>
+</s2>
+
+<s2 title="4.0.51 - Mar 3, 2017">
+<ul>
+<li>database: timing fixes for block load and write (#6034, rep by Nikola Sepentulevski)</li>
+<li>thread: task timing allows spurious LAUNCH error</li>
+<li>hessian: add allow/deny/whitelist for the deserializer</li>
+<li>request: NPE in finishRequest for callbacks and getLocale() (#6028)</li>
+</ul>
+</s2>
+
+<s2 title="4.0.50 - Jan 23, 2017">
+<ul>
+<li>lifecycle: shutdown order with request close (#6027, rep by Shinomiya Nobuaki)</li>
+<li>range: range issue with out-of-range range request (#6024, rep by snicolai2)</li>
+<li>tld: synchronization issue with AnnotationSet (#6023, rep by Shinomiya Nobuaki)</li>
+<li>jmx-list: throws NPE with -operations or -attributes option (#6022, rep by MCGuard)</li>
+<li>apache: add 4th argument to apr_pool_cleanup_register for SHM (#5948, rep by goodpro2)</li>
+<li>jstl-el: ${param} is not case-insensitive (#6021)</li>
+<li>startup: added active-wait-error-page for custom 503 on startup (#6002, rep by S. Busch)</li>
+<li>openssl: detect shutdown for SSL read (#5916, #5918, rep by stoty, alpor9)</li>
+<li>dbpool: remove connection error item (#6017)</li>
+<li>session: change session_store default to false (#6020)</li>
+<li>error-page: add error-page-server-id to disable server id from error page (#6015)</li>
+<li>cache: isssue with If-None-Match (#6014)</li>
+<li>deploy: git now deploys .war as single blob (#5989, #4957)</li>
+</ul>
+</s2>
+
+<s2 title="4.0.49 - Oct 15, 2016">
 <ul>
 <li>jsse: allow substrings (RC4) for cipher-suites-forbidden (#4987)</li>
 <li>pdf: add -server support for CLI pdf-report (#5950, rep by Nobuaki)</li>

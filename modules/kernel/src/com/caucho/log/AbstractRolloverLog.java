@@ -29,6 +29,21 @@
 
 package com.caucho.log;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
 import com.caucho.config.ConfigException;
 import com.caucho.config.types.Bytes;
 import com.caucho.config.types.CronType;
@@ -48,20 +63,6 @@ import com.caucho.vfs.TempStream;
 import com.caucho.vfs.TempStreamApi;
 import com.caucho.vfs.Vfs;
 import com.caucho.vfs.WriteStream;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Abstract class for a log that rolls over based on size or period.
@@ -339,11 +340,11 @@ public class AbstractRolloverLog implements Closeable {
   /**
    * Initialize the log.
    */
-  public void init()
+  public synchronized void init()
     throws IOException
   {
     long now = CurrentTime.getExactTime();
-
+    
     // server/0263
     // _nextRolloverCheckTime = now + _rolloverCheckPeriod;
 
@@ -380,8 +381,9 @@ public class AbstractRolloverLog implements Closeable {
       _archiveFormat = _rolloverPrefix + ".%Y%m%d.%H%M";
     
     _isInit = true;
-
+    
     _rolloverListener.requeue(_rolloverAlarm);
+    
     rollover();
   }
 
@@ -390,7 +392,9 @@ public class AbstractRolloverLog implements Closeable {
     long now = CurrentTime.getCurrentTime();
 
     if (_nextPeriodEnd <= now || _nextRolloverCheckTime.get() <= now) {
-      _nextRolloverCheckTime.set(now + _rolloverCheckPeriod);
+      long checkPeriod = Math.min(_rolloverCheckPeriod, HOUR);
+      
+      _nextRolloverCheckTime.set(now + checkPeriod);
       _rolloverWorker.wake();
 
       return true;
@@ -464,6 +468,8 @@ public class AbstractRolloverLog implements Closeable {
     throws IOException
   {
     synchronized (_logLock) {
+      flushTempStream();
+      
       if (_os != null)
         _os.flush();
 
@@ -471,11 +477,7 @@ public class AbstractRolloverLog implements Closeable {
         _zipOut.flush();
     }
     
-    long now = CurrentTime.getCurrentTime();
-    
-    if (_nextPeriodEnd < now) {
-      _rolloverWorker.wake();
-    }
+    rollover();
   }
 
   /**
@@ -494,8 +496,9 @@ public class AbstractRolloverLog implements Closeable {
     _isRollingOver = true;
     
     try {
-      if (! _isInit)
+      if (! _isInit) {
         return;
+      }
       
       Path savedPath = null;
 
@@ -530,8 +533,9 @@ public class AbstractRolloverLog implements Closeable {
     } finally {
       synchronized (_logLock) {
         _isRollingOver = false;
-        flushTempStream();
       }
+      
+      _flushWorker.wake();
       
       _rolloverListener.requeue(_rolloverAlarm);
     }
@@ -918,14 +922,19 @@ public class AbstractRolloverLog implements Closeable {
    */
   private void flushTempStream()
   {
+    if (_isRollingOver) {
+      return;
+    }
+    
     TempStreamApi ts = _tempStream;
     _tempStream = null;
     _tempStreamSize = 0;
 
     try {
       if (ts != null) {
-        if (_os == null)
+        if (_os == null) {
           openLog();
+        }
 
         try {
           ReadStream is = ts.openRead();
@@ -961,7 +970,11 @@ public class AbstractRolloverLog implements Closeable {
     @Override
     public long runTask()
     {
-      rolloverLogTask();
+      try {
+        rolloverLogTask();
+      } catch (Throwable e) {
+        e.printStackTrace();
+      }
       
       return -1;
     }
@@ -975,6 +988,8 @@ public class AbstractRolloverLog implements Closeable {
         flushStream();
       } catch (IOException e) {
         log.log(Level.FINER, e.toString(), e);
+      } catch (Throwable e) {
+        e.printStackTrace();
       }
       
       return -1;
@@ -991,30 +1006,32 @@ public class AbstractRolloverLog implements Closeable {
       try {
         _rolloverWorker.wake();
       } finally {
-        alarm.queue(_rolloverCheckPeriod);
+        requeue(alarm);
       }
     }
     
     void requeue(Alarm alarm)
     {
-      if (isClosed() || alarm == null)
+      if (isClosed() || alarm == null) {
         return;
+      }
       
       long now = CurrentTime.getCurrentTime();
       
       long nextCheckTime;
       
-      if (getRolloverSize() <= 0 || _rolloverCheckPeriod <= 0)
-        nextCheckTime = now + DAY;
-      else
-        nextCheckTime = now + _rolloverCheckPeriod;
-
-      if (_nextPeriodEnd <= nextCheckTime) {
-        alarm.queueAt(_nextPeriodEnd);
+      long checkPeriod;
+      
+      if (getRolloverSize() <= 0 || _rolloverCheckPeriod <= 0) {
+        checkPeriod = HOUR;
       }
       else {
-        alarm.queueAt(nextCheckTime);
+        checkPeriod = _rolloverCheckPeriod;
       }
+      
+      nextCheckTime = now + Math.min(checkPeriod, HOUR);
+
+      alarm.queueAt(Math.min(_nextPeriodEnd, nextCheckTime));
     }
   }
 }

@@ -203,7 +203,7 @@ public class FileServlet extends GenericServlet {
       isInclude = true;
     else
       uri = req.getRequestURI();
-
+    
     Cache cache = _localCache.get(uri);
 
     String filename = null;
@@ -248,7 +248,8 @@ public class FileServlet extends GenericServlet {
 
       String relPath = cb.toString();
 
-      if (_isCaseInsensitive && ! _context.getScheme().equals("memory")) {
+      // server/105u
+      if (_isCaseInsensitive) { // && ! _context.getScheme().equals("memory")) {
         relPath = relPath.toLowerCase(Locale.ENGLISH);
       }
       
@@ -271,7 +272,7 @@ public class FileServlet extends GenericServlet {
         return;
       }
 
-      if (relPath.endsWith(".DS_store")) {
+      if (relPath.indexOf(".DS_store") >= 0) {
         // MacOS-X security hole with trailing '.'
         res.sendError(HttpServletResponse.SC_NOT_FOUND);
         return;
@@ -551,6 +552,7 @@ public class FileServlet extends GenericServlet {
     String boundary = null;
     int off = range.indexOf("bytes=", head);
     ServletOutputStream os = null;
+    boolean hasData = false;
 
     if (off < 0)
       return false;
@@ -598,6 +600,12 @@ public class FileServlet extends GenericServlet {
       }
 
       head = off;
+
+      for (off--; off < length && range.charAt(off) != ','; off++) {
+      }
+
+      off++;
+      
       if (! hasLast) {
         if (first == 0)
           return false;
@@ -616,8 +624,11 @@ public class FileServlet extends GenericServlet {
 
       if (cacheLength <= last) {
         // XXX: actually, an error
-        break;
+        continue;
       }
+      
+      hasData = true;
+      
       res.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
       StringBuilder cb = new StringBuilder();
       cb.append("bytes ");
@@ -699,11 +710,6 @@ public class FileServlet extends GenericServlet {
         if (is != null)
           is.close();
       }
-
-      for (off--; off < length && range.charAt(off) != ','; off++) {
-      }
-
-      off++;
     }
 
     if (hasMore) {
@@ -718,6 +724,9 @@ public class FileServlet extends GenericServlet {
       os.write('-');
       os.write('\r');
       os.write('\n');
+    }
+    else if (! hasData) {
+      res.setStatus(416);
     }
 
     return true;

@@ -1322,6 +1322,8 @@ public class TcpPort
     if (_lifecycle.toStop()) {
       if (_serverSocket != null)
         _serverSocket.listen(0);
+      
+      _launcher.close();
 
       if (_port < 0) {
       }
@@ -1372,7 +1374,7 @@ public class TcpPort
     try {
       SocketLinkThreadLauncher launcher = getLauncher();
 
-      while (! isClosed()) {
+      while (isActive()) {
         Thread.interrupted();
 
         if (_serverSocket.accept(socket)) {
@@ -1775,11 +1777,43 @@ public class TcpPort
    * Shuts the Port down.  The server gives connections 30
    * seconds to complete.
    */
+  public void closeBind()
+  {
+    if (! _lifecycle.toStop())
+      return;
+    
+    disable();
+    
+    _launcher.close();
+  
+    QServerSocket serverSocket = _serverSocket;
+
+    // close the server socket
+    if (serverSocket != null) {
+      try {
+        serverSocket.close();
+      } catch (Throwable e) {
+      }
+
+      try {
+        synchronized (serverSocket) {
+          serverSocket.notifyAll();
+        }
+      } catch (Throwable e) {
+      }
+    }
+  }
+
+  /**
+   * Shuts the Port down.  The server gives connections 30
+   * seconds to complete.
+   */
   public void close()
   {
-    if (! _lifecycle.toDestroy())
+    if (! _lifecycle.toDestroy()) {
       return;
-
+    }
+    
     if (log.isLoggable(Level.FINE))
       log.fine(this + " closing");
 
@@ -1795,10 +1829,19 @@ public class TcpPort
     _serverSocket = null;
 
     InetAddress localAddress = null;
-    int localPort = 0;
-    if (serverSocket != null) {
+    int localPort = getLocalPort();
+
+    if (_port > 0) {
+	localPort = _port;
+	localAddress = _socketAddress;
+    }
+    else if (serverSocket != null) {
       localAddress = serverSocket.getLocalAddress();
       localPort = serverSocket.getLocalPort();
+    }
+
+    if (localPort == 0) {
+      localPort = _port;
     }
 
     // close the server socket
@@ -1816,14 +1859,12 @@ public class TcpPort
       }
     }
 
-    /*
-    if (selectManager != null) {
+    if (_selectManager != null) {
       try {
-        selectManager.onPortClose(this);
+        _selectManager.onPortClose(this);
       } catch (Throwable e) {
       }
     }
-    */
 
     Set<TcpSocketLink> activeSet;
 
@@ -1855,7 +1896,7 @@ public class TcpPort
       for (int i = 0; i < idleCount + 10; i++) {
         InetSocketAddress addr;
 
-        if (getIdleThreadCount() == 0)
+        if (getIdleThreadCount() + getStartThreadCount() == 0)
           break;
 
         if (localAddress == null ||

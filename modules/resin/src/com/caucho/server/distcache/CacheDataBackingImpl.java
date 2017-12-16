@@ -52,6 +52,7 @@ import com.caucho.util.Alarm;
 import com.caucho.util.AlarmListener;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.HashKey;
+import com.caucho.util.L10N;
 import com.caucho.vfs.Path;
 import com.caucho.vfs.StreamSource;
 import com.caucho.vfs.WriteStream;
@@ -60,6 +61,7 @@ import com.caucho.vfs.WriteStream;
  * Manages the distributed cache
  */
 public class CacheDataBackingImpl implements CacheDataBacking {
+  private static final L10N L = new L10N(CacheDataBackingImpl.class);
   private static final Logger log
     = Logger.getLogger(CacheDataBackingImpl.class.getName());
 
@@ -80,7 +82,7 @@ public class CacheDataBackingImpl implements CacheDataBacking {
   
   //private long _reaperTimeout = 5 * 60 * 1000;
   //private long _reaperTimeout = 5 * 60 * 1000;
-  private long _reaperTimeout = 1 * 60 * 1000;
+  private long _reaperTimeout = 5 * 60 * 1000;
 
   private long _reaperCycleMaxActiveDurationMs = 1 * 1000;
   private double _reaperCycleIdleToActiveUtilizationRatio = 2.0;
@@ -88,6 +90,11 @@ public class CacheDataBackingImpl implements CacheDataBacking {
   public CacheDataBackingImpl(CacheStoreManager storeManager)
   {
     _manager = storeManager;
+    
+    if (_reaperTimeout < 5 * 60000) {
+      log.warning(L.l("Test {0} _reaperTimeout",
+                      getClass().getSimpleName()));
+    }
   }
 
   public void setDataStore(DataStore dataStore)
@@ -171,7 +178,8 @@ public class CacheDataBackingImpl implements CacheDataBacking {
     // MnodeUpdate mnodeUpdate = new MnodeUpdate(mnodeValue);
     MnodeEntry entry = null;
     boolean isSave = false;
-    
+
+    synchronized (_mnodeStore) {
     if (oldEntryValue == null
         || oldEntryValue.isImplicitNull()
         || oldEntryValue == MnodeEntry.NULL) {
@@ -206,12 +214,23 @@ public class CacheDataBackingImpl implements CacheDataBacking {
         isSave = true;
         entry = mnodeUpdate;
       }
+      else if (_mnodeStore.updateSave(key.getHash(),
+                                 cacheKey.getHash(),
+                                 mnodeUpdate,
+                                 mnodeUpdate.getValueDataId(),
+                                 mnodeUpdate.getValueDataTime(),
+                                 mnodeUpdate.getLastAccessedTime(),
+                                 mnodeUpdate.getLastModifiedTime())) {
+        isSave = true;
+        entry = mnodeUpdate;
+      }
       else {
-        log.fine(this + " db update failed due to timing conflict"
+        log.fine(this + " db update failed due to late version"
                  + "(key=" + key + ")");
 
         entry = oldEntryValue;
       }
+    }
     }
     
     if (isSave && oldEntryValue != null) {
@@ -242,6 +261,7 @@ public class CacheDataBackingImpl implements CacheDataBacking {
       return true;
     }
 
+    synchronized (mnodeStore) {
     if (oldEntryEntry == null
         || oldEntryEntry.isImplicitNull()
         || oldEntryEntry == MnodeEntry.NULL) {
@@ -249,7 +269,7 @@ public class CacheDataBackingImpl implements CacheDataBacking {
       long lastAccessTime = mnodeUpdate.getLastAccessTime();
       long lastModifiedTime = mnodeUpdate.getLastAccessTime();
 
-      if (_mnodeStore.insert(key, cacheKey,
+      if (mnodeStore.insert(key, cacheKey,
                              mnodeUpdate, 
                              mnodeEntry.getValueDataId(),
                              mnodeEntry.getValueDataTime(),
@@ -263,14 +283,14 @@ public class CacheDataBackingImpl implements CacheDataBacking {
       }
     } else {
       if (mnodeStore.updateSave(key.getHash(),
-                                 cacheKey.getHash(),
-                                 mnodeUpdate,
-                                 mnodeEntry.getValueDataId(),
-                                 mnodeEntry.getValueDataTime(),
-                                 mnodeEntry.getLastAccessedTime(),
-                                 mnodeEntry.getLastModifiedTime())) {
-        isSave = true;
-      }
+                                cacheKey.getHash(),
+                                mnodeUpdate,
+                                mnodeEntry.getValueDataId(),
+                                mnodeEntry.getValueDataTime(),
+                                mnodeEntry.getLastAccessedTime(),
+                                mnodeEntry.getLastModifiedTime())) {
+       isSave = true;
+     }
       else if (mnodeStore.insert(key,
                                   cacheKey,
                                   mnodeUpdate,
@@ -283,9 +303,10 @@ public class CacheDataBackingImpl implements CacheDataBacking {
         addCreateCount();
       }
       else {
-        log.fine(this + " db update failed due to timing conflict"
+        log.finer(this + " db update failed due to late version"
                  + "(key=" + key + ", version=" + mnodeUpdate.getVersion() + ")");
       }
+    }
     }
 
     if (isSave && oldEntryEntry != null) {
@@ -651,11 +672,16 @@ public class CacheDataBackingImpl implements CacheDataBacking {
 
         } catch (Exception e) {
           log.log(Level.FINER, e.toString(), e);
+          
+          log.warning(e.toString());
         }
       }
       
       if (mnodeList.size() > 0) {
-        log.info(getClass().getSimpleName() + " removed " + mnodeList.size() + " expired items (removed=" + removeCount + ")");
+        int count = _expireState.removeExpiredData();
+        
+        log.info(getClass().getSimpleName() + " removed " + mnodeList.size() + " expired items (removed=" + removeCount + ",old=" + count + ")");
+        
       }
 
         // throttle the select query
@@ -753,5 +779,11 @@ public class CacheDataBackingImpl implements CacheDataBacking {
 
       return actualSleepDurationMs;
     }
+  }
+  
+  @Override
+  public String toString()
+  {
+    return getClass().getSimpleName() + "[" + _dataStore + "]";
   }
 }

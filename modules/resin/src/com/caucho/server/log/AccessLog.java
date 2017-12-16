@@ -89,8 +89,6 @@ public class AccessLog extends AbstractAccessLog implements AlarmListener
 
   private long _autoFlushTime = 60000;
 
-  private final CharBuffer _cb = new CharBuffer();
-
   private Alarm _alarm = new WeakAlarm(this);
   private boolean _isActive;
 
@@ -260,6 +258,18 @@ public class AccessLog extends AbstractAccessLog implements AlarmListener
   public void init()
     throws ServletException, IOException
   {
+    // do nothing because of multiple access-log declarations
+  }
+  
+  /**
+   * Initialize the log.
+   */
+  public void start()
+  {
+    if (_isActive) {
+      return;
+    }
+    
     _isActive = true;
 
     if (_alarm != null) {
@@ -282,12 +292,16 @@ public class AccessLog extends AbstractAccessLog implements AlarmListener
       _timeFormat = "[%d/%b/%Y:%H:%M:%S %z]";
     }
     
-    _logWriter.init();
-    // _sharedBufferLock = _logWriter.getBufferLock();
+    try {
+      _logWriter.init();
+    //  _sharedBufferLock = _logWriter.getBufferLock();
 
-    super.init();
+      super.init();
     
-    _logWriter.rollover();
+      _logWriter.rollover();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -430,7 +444,7 @@ public class AccessLog extends AbstractAccessLog implements AlarmListener
     throws IOException
   {
     final AbstractHttpRequest absRequest = request.getAbstractHttpRequest();
-    CharBuffer cb = _cb;
+    CharBuffer cb = new CharBuffer();
 
     int len = _segments.length;
     for (int i = 0; i < len; i++) {
@@ -704,26 +718,17 @@ public class AccessLog extends AbstractAccessLog implements AlarmListener
   {
     int length = s.length();
 
-    _cb.ensureCapacity(length);
-    char []cBuf = _cb.getBuffer();
-
-    s.getChars(0, length, cBuf, 0);
-
-    for (int i = length - 1; i >= 0; i--)
-      buffer[offset + i] = (byte) cBuf[i];
+    for (int i = length - 1; i >= 0; i--) {
+      buffer[offset + i] = (byte) s.charAt(i);
+    }
 
     return offset + length;
   }
   
   private int print(byte []buffer, int offset, String s, int sOff, int sLen)
   {
-    _cb.ensureCapacity(sLen);
-    char []cBuf = _cb.getBuffer();
-
-    s.getChars(sOff, sLen, cBuf, 0);
-
     for (int i = sLen - 1; i >= 0; i--) {
-      buffer[offset + i] = (byte) cBuf[i];
+      buffer[offset + i] = (byte) s.charAt(sOff + i);
     }
 
     return offset + sLen;

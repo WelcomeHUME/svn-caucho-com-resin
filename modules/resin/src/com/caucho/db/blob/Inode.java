@@ -43,6 +43,7 @@ import com.caucho.db.block.BlockStore;
 import com.caucho.db.xa.RawTransaction;
 import com.caucho.db.xa.StoreTransaction;
 import com.caucho.util.FreeList;
+import com.caucho.util.Hex;
 import com.caucho.util.L10N;
 import com.caucho.vfs.OutputStreamWithBuffer;
 import com.caucho.vfs.TempCharBuffer;
@@ -124,8 +125,6 @@ public class Inode
     = (SINGLE_INDIRECT_MAX
        + DOUBLE_INDIRECT_BLOCKS * (BLOCK_SIZE / 8L) * BLOCK_SIZE);
 
-  private static final FreeList<byte[]> _freeBytes = new FreeList<byte[]>(16);
-
   private BlockStore _store;
   private final byte []_bytes = new byte[INODE_SIZE];
 
@@ -194,7 +193,7 @@ public class Inode
   /**
    * Writes the inode value to a stream.
    */
-  public void writeToStreamOld(OutputStreamWithBuffer os,
+  private void writeToStreamOld(OutputStreamWithBuffer os,
                                long offset, long length)
     throws IOException
   {
@@ -329,12 +328,11 @@ public class Inode
   {
     long fileLength = readLong(inode, inodeOffset);
 
-    int sublen = bufferLength;
-    if (fileLength - fileOffset < sublen)
-      sublen = (int) (fileLength - fileOffset);
+    int sublen = Math.min(bufferLength, (int) (fileLength - fileOffset));
 
-    if (sublen <= 0)
+    if (sublen <= 0) {
       return -1;
+    }
 
     if (fileLength <= INLINE_MAX) {
       System.arraycopy(inode, inodeOffset + 8 + (int) fileOffset,
@@ -346,8 +344,7 @@ public class Inode
       long fragAddr = readMiniFragAddr(inode, inodeOffset, store, fileOffset);
       int fragOffset = (int) (fileOffset % MINI_FRAG_SIZE);
 
-      if (MINI_FRAG_SIZE - fragOffset < sublen)
-        sublen = MINI_FRAG_SIZE - fragOffset;
+      sublen = Math.min(MINI_FRAG_SIZE - fragOffset, sublen);
 
       store.readMiniFragment(fragAddr, fragOffset,
                              buffer, bufferOffset, sublen);
@@ -361,12 +358,23 @@ public class Inode
       long addr = readBlockAddr(inode, inodeOffset, update, fileOffset);
       int offset = (int) (fileOffset % BLOCK_SIZE);
 
-      if (BLOCK_SIZE - offset < sublen)
-        sublen = BLOCK_SIZE - offset;
+      sublen = Math.min(BLOCK_SIZE - offset, sublen);
 
       store.readBlock(addr, offset, buffer, bufferOffset, sublen);
 
       return sublen;
+    } catch (IllegalArgumentException e) {
+      e = new IllegalArgumentException(L.l("{0}\n  inodeOffset={1} fileOffset=0x{2}\n  {3}",
+                                             e.getMessage(),
+                                             inodeOffset,
+                                             Long.toHexString(fileOffset),
+                                             Hex.toHex(inode, inodeOffset, inode.length - inodeOffset)),
+                                         e);
+      
+      e.fillInStackTrace();
+      e.printStackTrace();
+      
+      throw e;
     } finally {
       update.close();
     }
@@ -527,8 +535,7 @@ public class Inode
         else {
           int sublen = length;
 
-          if (BLOCK_SIZE < sublen)
-            sublen = BLOCK_SIZE;
+          sublen = Math.min(sublen, BLOCK_SIZE);
 
           Block block = store.allocateBlock();
 
@@ -580,8 +587,7 @@ public class Inode
     long fileLength = readLong(inode, inodeOffset);
 
     int charSublen = (int) (fileLength - fileOffset) / 2;
-    if (bufferLength < charSublen)
-      charSublen = bufferLength;
+    charSublen = Math.min(bufferLength, charSublen);
 
     if (charSublen <= 0)
       return -1;
@@ -810,11 +816,7 @@ public class Inode
    */
   public void remove()
   {
-    byte []bytes = _freeBytes.allocate();
-
-    if (bytes == null) {
-      bytes = new byte[INODE_SIZE];
-    }
+    byte []bytes = new byte[INODE_SIZE];
     
     System.arraycopy(_bytes, 0, bytes, 0, INODE_SIZE);
     Arrays.fill(_bytes, 0, INODE_SIZE, (byte) 0);
@@ -862,7 +864,12 @@ public class Inode
         int blockCount = (int) ((length - 1) / BLOCK_SIZE);
         long blockAddr = readBlockAddr(bytes, 0, update, length - 1);
 
-        if (! validateBlockAddr(blockAddr, length, BlockStore.ALLOC_DATA)) {
+        try {
+          if (! validateBlockAddr(blockAddr, length, BlockStore.ALLOC_DATA)) {
+            continue;
+          }
+        } catch (Exception e) {
+          log.log(Level.WARNING, e.toString(), e);
           continue;
         }
 
@@ -895,8 +902,6 @@ public class Inode
     } catch (Exception e) {
       log.log(Level.WARNING, e.toString(), e);
     } finally {
-      _freeBytes.free(bytes);
-      
       if (update != null) {
         update.close();
       }
@@ -1033,6 +1038,17 @@ public class Inode
     }
     
     return true;
+  }
+  
+  private static void validateBlockAddr(BlockStore store,
+                                        long blockAddr,
+                                        int allocCode)
+  {
+    if (! isValidBlockAddr(store, blockAddr, 0, allocCode)) {
+      throw new IllegalStateException(L.l("Invalid block 0x{0} in {1}", 
+                                          Long.toHexString(blockAddr),
+                                          store));
+    }
   }
 
   private static boolean isValidBlockAddr(BlockStore store,
@@ -1185,6 +1201,8 @@ public class Inode
   {
     BlockStore store = update.getStore();
     
+    validateBlockAddr(store, blockAddr, BlockStore.ALLOC_DATA);
+    
     int blockCount = (int) (fileOffset / BLOCK_SIZE);
 
     // XXX: not sure if correct, needs XA?
@@ -1203,9 +1221,11 @@ public class Inode
         Block block = store.allocateIndirectBlock();
         indAddr = BlockStore.blockIdToAddress(block.getBlockId());
         block.free();
-
+        
         writeLong(inode, inodeOffset + (DIRECT_BLOCKS + 1) * 8, indAddr);
       }
+      
+      validateBlockAddr(store, indAddr, BlockStore.ALLOC_INODE_PTR);
 
       int blockOffset = 8 * (blockCount - DIRECT_BLOCKS);
 

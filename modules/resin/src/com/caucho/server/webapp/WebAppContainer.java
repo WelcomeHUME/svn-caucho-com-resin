@@ -733,6 +733,14 @@ public class WebAppContainer
   public void start()
   {
     try {
+      if (_accessLog != null) {
+        _accessLog.start();
+      }
+    } catch (Exception e) {
+      throw ConfigException.create(e);
+    }
+    
+    try {
       _appDeploy.start();
     } catch (Exception e) {
       throw ConfigException.create(e);
@@ -786,7 +794,8 @@ public class WebAppContainer
     boolean isAlwaysModified;
 
     if (webApp != null) {
-      invocation = webApp.buildInvocation(invocation);
+      boolean isTop = _rewriteDispatch == null;
+      invocation = webApp.buildInvocation(invocation, isTop);
       chain = invocation.getFilterChain();
       isAlwaysModified = false;
     }
@@ -817,7 +826,6 @@ public class WebAppContainer
                                                       uri,
                                                       queryString,
                                                       chain);
-
       if (rewriteChain != chain) {
         // server/13sf, server/1kq1, server/1krd
         // WebApp rootWebApp = findWebAppByURI("/");
@@ -829,16 +837,18 @@ public class WebAppContainer
         }
         
         invocation.setWebApp(rootWebApp);
-        
-        // server/1k21 vs server/1kk7
-        // if (rootWebApp != webApp)
-        rewriteChain = rootWebApp.createWebAppFilterChain(rewriteChain, 
-                                                          invocation,
-                                                          true);
-
-        invocation.setFilterChain(rewriteChain);
         isAlwaysModified = false;
       }
+        
+      // server/1k21 vs server/1kk7
+      // if (rootWebApp != webApp)
+      // server/02ex vs server/02ey - false
+      webApp = invocation.getWebApp();
+      rewriteChain = webApp.createWebAppFilterChain(rewriteChain, 
+                                                    invocation,
+                                                    true);
+
+      invocation.setFilterChain(rewriteChain);
     }
 
     if (isAlwaysModified)
@@ -1048,7 +1058,7 @@ public class WebAppContainer
     String invocationURI = invocation.getURI();
     
     WebAppUriMap entry = findEntryByURI(invocation.getURI());
-
+    
     if (entry == null) {
       return null;
     }
@@ -1056,10 +1066,11 @@ public class WebAppContainer
     // server/1hb1
     WebAppController controller = entry.getController();
     String contextPath = controller.getContextPath(invocationURI);
-    // String contextPath = entry.getContextPath();
+    //String contextPath = entry.getContextPath();
 
-    invocation.setContextPath(invocationURI.substring(0, contextPath.length()));
-    // invocation.setContextPath(contextPath);
+    // server/108i
+    //invocation.setContextPath(invocationURI.substring(0, contextPath.length()));
+    invocation.setContextPath(contextPath);
 
     String contextUri = invocationURI.substring(contextPath.length());
     invocation.setContextURI(contextUri);
@@ -1233,6 +1244,10 @@ public class WebAppContainer
   {
     _earDeploy.stop();
     _appDeploy.stop();
+    
+    if (_errorWebApp != null) {
+      _errorWebApp.stop();
+    }
 
     return true;
   }
@@ -1244,6 +1259,10 @@ public class WebAppContainer
   {
     _earDeploy.destroy();
     _appDeploy.destroy();
+    
+    if (_errorWebApp != null) {
+      _errorWebApp.destroy();
+    }
 
     AbstractAccessLog accessLog = _accessLog;
     _accessLog = null;

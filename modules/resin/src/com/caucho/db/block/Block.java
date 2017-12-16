@@ -343,6 +343,17 @@ public final class Block implements SyncCacheListener {
     } while (! _dirtyRange.compareAndSet(oldDirty, newDirty));
   }
 
+  public void debugFd()
+  {
+      byte []buffer = _buffer;
+      for (int i = 0; i < buffer.length; i++) {
+	  if ((buffer[i] & 0xff) == 0xfd) {
+	      System.err.println("ID: " + i + " " + this);
+	      Thread.dumpStack();
+	  }
+      }
+  }
+
   /**
    * Sets a specific dirty value. Not thread safe.
    */
@@ -371,6 +382,19 @@ public final class Block implements SyncCacheListener {
   {
     if (_isFlushDirtyOnCommit) {
       save();
+    }
+  }
+
+  /**
+   * Handle any database writes necessary at commit time.  If
+   * isFlushDirtyOnCommit() is true, this will write the data to
+   * the backing file.
+   */
+  public void commitNoWake()
+    throws IOException
+  {
+    if (_isFlushDirtyOnCommit) {
+      saveNoWake();
     }
   }
 
@@ -475,8 +499,8 @@ public final class Block implements SyncCacheListener {
   private void saveNoWake()
   {
     if (toWriteQueued()) {
-      //_store.getWriter().addDirtyBlockNoWake(this);
-      _store.getWriter().addDirtyBlock(this);
+      _store.getWriter().addDirtyBlockNoWake(this);
+      //_store.getWriter().addDirtyBlock(this);
     }
   }
 
@@ -530,21 +554,26 @@ public final class Block implements SyncCacheListener {
    */
   boolean copyToBlock(Block block)
   {
-    if (block == this)
+    if (block == this) {
       return true;
-
-    byte []buffer = _buffer;
-    byte []targetBuffer = block.getBuffer();
+    }
 
     // For timing reasons, the buffer cannot be freed if it's also
     // copied.
     _isFreeBuffer = false;
+    block._isFreeBuffer = false;
 
+    byte []buffer = _buffer;
+    byte []targetBuffer = block.getBuffer();
+
+    if (buffer != null && targetBuffer != null) {
+      System.arraycopy(buffer, 0, block.getBuffer(), 0, buffer.length);
+    }
+    
     // XXX: need to allocate state
-    boolean isValid = isValid() && buffer != null && targetBuffer != null;
+    boolean isValid = isValid() && _buffer != null && block.getBuffer() != null;
 
     if (isValid) {
-      System.arraycopy(buffer, 0, block.getBuffer(), 0, buffer.length);
       block.toValid();
 
       block._isCopy = true;

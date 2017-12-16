@@ -110,6 +110,7 @@ public class InodeUpdate
 
     if (block != null) {
       block.free();
+      block.save();
     }
   }
 
@@ -126,13 +127,14 @@ public class InodeUpdate
     long blockId = _store.addressToBlockId(blockAddress);
     
     Block block = _lastBlock;
-    
+
     if (block == null) {
       block = _store.readBlock(blockAddress);
       _lastBlock = block;
     }
     else if (block.getBlockId() != blockId) {
       block.free();
+      block.save();
       block = _store.readBlock(blockAddress);
       _lastBlock = block;
     }

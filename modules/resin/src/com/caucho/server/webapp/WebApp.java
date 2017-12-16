@@ -161,6 +161,7 @@ import com.caucho.server.dispatch.FilterConfigImpl;
 import com.caucho.server.dispatch.FilterManager;
 import com.caucho.server.dispatch.FilterMapper;
 import com.caucho.server.dispatch.FilterMapping;
+import com.caucho.server.dispatch.ForwardErrorFilterChain;
 import com.caucho.server.dispatch.Invocation;
 import com.caucho.server.dispatch.InvocationBuilder;
 import com.caucho.server.dispatch.InvocationDecoder;
@@ -406,6 +407,7 @@ public class WebApp extends ServletContextImpl
 
   private long _shutdownWaitTime = 15000L;
   private long _activeWaitTime = 60000L;
+  private String _activeWaitErrorPage;
 
   private long _idleTime = 2 * 3600 * 1000L;
   
@@ -2296,6 +2298,7 @@ public class WebApp extends ServletContextImpl
   {
     if (_jsp == null) {
       _jsp = new JspPropertyGroup();
+      //_jsp.setDependencyCheckIntervalMillis(getEnvironmentClassLoader().getDependencyCheckInterval());
     }
 
     return _jsp;
@@ -2625,10 +2628,19 @@ public class WebApp extends ServletContextImpl
   {
     _activeWaitTime = wait.getPeriod();
   }
-  
+
   public long getActiveWaitTime()
   {
     return _activeWaitTime;
+  }
+
+  /**
+   * Sets the error page waiting for a restart
+   */
+  @Configurable
+  public void setActiveWaitErrorPage(String location)
+  {
+    _activeWaitErrorPage = location;
   }
 
   /**
@@ -3469,7 +3481,7 @@ public class WebApp extends ServletContextImpl
       = new ArrayList<ServletContainerInitializer>(_cdiManager.loadLocalServices(ServletContainerInitializer.class));
     
     Collections.sort(initList, new InitComparator());
-    
+
     for (ServletContainerInitializer init : initList) {
       callInitializer(init);
     }
@@ -3573,6 +3585,7 @@ public class WebApp extends ServletContextImpl
       if (log.isLoggable(Level.FINER)){
         log.finer("ServletContainerInitializer " + init + " {in " + this + "}");
       }
+      
       init.onStartup(null, this);
       return;
     }
@@ -3736,6 +3749,10 @@ public class WebApp extends ServletContextImpl
       if (_accessLog == null) {
         _accessLog = _accessLogLocal.get();
       }
+      
+      if (_accessLog != null) {
+        _accessLog.start();
+      }
 
       long interval = _classLoader.getDependencyCheckInterval();
       _invocationDependency.setCheckInterval(interval);
@@ -3867,16 +3884,17 @@ public class WebApp extends ServletContextImpl
   public boolean isModified()
   {
     // server/13l8
-
     // _configException test is needed so compilation failures will force
     // restart
-    if (_lifecycle.isAfterStopping())
+    if (_lifecycle.isAfterStopping()) {
       return true;
+    }
     else if (DeployMode.MANUAL.equals(_controller.getRedeployMode())) {
       return false;
     }
-    else if (_classLoader.isModified())
+    else if (_classLoader.isModified()) {
       return true;
+    }
     else
       return false;
   }
@@ -3891,12 +3909,15 @@ public class WebApp extends ServletContextImpl
     _classLoader.isModifiedNow();
     _invocationDependency.isModifiedNow();
 
-    if (_lifecycle.isAfterStopping())
+    if (_lifecycle.isAfterStopping()) {
       return true;
-    else if (_classLoader.isModifiedNow())
+    }
+    else if (_classLoader.isModifiedNow()) {
       return true;
-    else
+    }
+    else {
       return false;
+    }
   }
 
   /**
@@ -4003,6 +4024,14 @@ public class WebApp extends ServletContextImpl
   @Override
   public Invocation buildInvocation(Invocation invocation)
   {
+    return buildInvocation(invocation, true);
+  }
+
+    /**
+     * Fills the servlet instance.  (Generalize?)
+     */
+  public Invocation buildInvocation(Invocation invocation, boolean isTop)
+  {
     Thread thread = Thread.currentThread();
     ClassLoader oldLoader = thread.getContextClassLoader();
 
@@ -4030,7 +4059,24 @@ public class WebApp extends ServletContextImpl
       else if (! _lifecycle.waitForActive(_activeWaitTime)) {
         if (log.isLoggable(Level.FINE))
           log.fine(this + " returned 503 busy for '" + invocation.getRawURI() + "'");
+        
+        String errorPage = _activeWaitErrorPage;
         int code = HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+        
+        if (errorPage != null) {
+          WebApp subWebApp = getServer().getWebApp("", 0, "/");
+          
+          if (subWebApp != null) {
+            RequestDispatcherImpl disp = subWebApp.getRequestDispatcher(errorPage);
+            
+            chain = new ForwardErrorFilterChain(disp, code);
+            invocation.setFilterChain(chain);
+            invocation.setDependency(AlwaysModified.create());
+          
+            return invocation;
+          }
+        }
+
         chain = new ErrorFilterChain(code);
         invocation.setFilterChain(chain);
         invocation.setDependency(AlwaysModified.create());
@@ -4094,7 +4140,7 @@ public class WebApp extends ServletContextImpl
         
         chain = buildSecurity(chain, invocation);
 
-        chain = createWebAppFilterChain(chain, invocation, true);
+        chain = createWebAppFilterChain(chain, invocation, isTop);
 
         invocation.setFilterChain(chain);
         invocation.setPathInfo(entry.getPathInfo());
@@ -4179,8 +4225,9 @@ public class WebApp extends ServletContextImpl
     if (_isStatisticsEnabled)
       chain = new StatisticsFilterChain(chain, this);
 
-    if (getAccessLog() != null && isTop)
+    if (getAccessLog() != null && isTop) {
       chain = new AccessLogFilterChain(chain, this);
+    }
     
     return chain;
   }
@@ -4401,7 +4448,7 @@ public class WebApp extends ServletContextImpl
           isSameWebApp = true;
         }
       }
-
+      
       if (_parent != null && ! isSameWebApp) {
         // jsp/15ll
         _parent.buildIncludeInvocation(includeInvocation);
@@ -4961,13 +5008,12 @@ public class WebApp extends ServletContextImpl
         return;
       }
       
-      long beginStop = CurrentTime.getCurrentTime();
+      long beginStop = CurrentTime.getCurrentTimeActual();
 
       clearCache();
-      
+
       while (_requestCount.get() > 0
-             && CurrentTime.getCurrentTime() < beginStop + _shutdownWaitTime
-             && ! CurrentTime.isTest()) {
+             && CurrentTime.getCurrentTimeActual() < beginStop + _shutdownWaitTime) {
         try {
           Thread.interrupted();
           Thread.sleep(100);
