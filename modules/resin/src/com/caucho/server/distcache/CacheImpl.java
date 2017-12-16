@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -47,23 +46,22 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.cache.Cache;
-import javax.cache.CacheException;
-import javax.cache.CacheLoader;
-import javax.cache.CacheMXBean;
-import javax.cache.CacheManager;
-import javax.cache.CacheStatistics;
-import javax.cache.Configuration;
-import javax.cache.Status;
-import javax.cache.event.CacheEntryEvent;
-import javax.cache.event.CacheEntryEventFilter;
-import javax.cache.event.CacheEntryExpiredListener;
-import javax.cache.event.CacheEntryListener;
-import javax.cache.event.CacheEntryListenerException;
-import javax.cache.event.CacheEntryReadListener;
-import javax.cache.event.CacheEntryRemovedListener;
-import javax.cache.event.CacheEntryUpdatedListener;
-
+import com.caucho.cache.Cache;
+import com.caucho.cache.CacheException;
+import com.caucho.cache.CacheLoader;
+import com.caucho.cache.CacheMXBean;
+import com.caucho.cache.CacheManager;
+import com.caucho.cache.CacheStatistics;
+import com.caucho.cache.Configuration;
+import com.caucho.cache.Status;
+import com.caucho.cache.event.CacheEntryEvent;
+import com.caucho.cache.event.CacheEntryEventFilter;
+import com.caucho.cache.event.CacheEntryExpiredListener;
+import com.caucho.cache.event.CacheEntryListener;
+import com.caucho.cache.event.CacheEntryListenerException;
+import com.caucho.cache.event.CacheEntryReadListener;
+import com.caucho.cache.event.CacheEntryRemovedListener;
+import com.caucho.cache.event.CacheEntryUpdatedListener;
 import com.caucho.config.ConfigException;
 import com.caucho.distcache.ByteStreamCache;
 import com.caucho.distcache.ExtCacheEntry;
@@ -73,6 +71,7 @@ import com.caucho.env.distcache.CacheDataBacking;
 import com.caucho.env.thread.ThreadPool;
 import com.caucho.loader.Environment;
 import com.caucho.management.server.AbstractManagedObject;
+import com.caucho.server.distcache.DataStore.DataItem;
 import com.caucho.util.ConcurrentArrayList;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.HashKey;
@@ -898,21 +897,23 @@ public class CacheImpl<K,V>
     _manager.closeCache(_guid, getCacheKey());
   }
   
-  public boolean loadData(long valueDataId, WriteStream os)
+  public boolean loadData(long valueDataId,
+                          long valueDataTime,
+                          WriteStream os)
     throws IOException
   {
-    return getDataBacking().loadData(valueDataId, os);
+    return getDataBacking().loadData(valueDataId, valueDataTime, os);
   }
 
-  public long saveData(StreamSource source, int length)
+  public DataItem saveData(StreamSource source, int length)
     throws IOException
   {
     return getDataBacking().saveData(source, length);
   }
 
-  public boolean isDataAvailable(long valueDataId)
+  public boolean isDataAvailable(long valueDataId, long valueDataTime)
   {
-    return getDataBacking().isDataAvailable(valueDataId);
+    return getDataBacking().isDataAvailable(valueDataId, valueDataTime);
   }
   
   private CacheDataBacking getDataBacking()

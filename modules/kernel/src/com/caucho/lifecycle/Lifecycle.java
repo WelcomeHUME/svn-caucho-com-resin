@@ -349,7 +349,7 @@ public final class Lifecycle {
       }
     }
     
-    return _state.get().isActive();
+    return getState().isActive();
   }
 
   /**
@@ -426,7 +426,8 @@ public final class Lifecycle {
    */
   public boolean isDestroying()
   {
-    return getState().isDestroying();
+    //return getState().isDestroying();
+    return getState().isAfterDestroying();
   }
 
   /**

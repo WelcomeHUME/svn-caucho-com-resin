@@ -58,6 +58,7 @@ import com.caucho.distcache.ExtCacheEntry;
 import com.caucho.json.Json;
 import com.caucho.json.Transient;
 import com.caucho.security.Login;
+import com.caucho.server.util.CauchoSystem;
 import com.caucho.server.webapp.WebApp;
 import com.caucho.util.CacheListener;
 import com.caucho.util.CurrentTime;
@@ -569,10 +570,10 @@ public class SessionImpl implements HttpSession, CacheListener {
    */
   boolean addUse()
   {
+    
     _lastUseTime = CurrentTime.getCurrentTime();
 
     _useCount.incrementAndGet();
-
     /*
     synchronized (this) {
       if (_isClosing)
@@ -645,7 +646,7 @@ public class SessionImpl implements HttpSession, CacheListener {
     // TCK cares about exact time
     setAccessTime(CurrentTime.getExactTime());
     _isNew = false;
-
+    
     // update cache access?
     if (_useCount.decrementAndGet() > 0)
       return;
@@ -665,7 +666,7 @@ public class SessionImpl implements HttpSession, CacheListener {
   public boolean load(boolean isNew)
   {
     long now = CurrentTime.getCurrentTime();
-    
+
     if (! _state.isValid()) {
       return false;
     }
@@ -694,7 +695,7 @@ public class SessionImpl implements HttpSession, CacheListener {
 
       ExtCacheEntry entry = cache.getExtCacheEntry(_id);
       ExtCacheEntry cacheEntry = _cacheEntry;
-
+      
       if (entry != null && ! entry.isValueNull()) {
         // server/01a1, #4419
 
@@ -857,6 +858,10 @@ public class SessionImpl implements HttpSession, CacheListener {
     else {
       log.warning("Invalid session load id=" + getId() + ", but loaded id=" + id);
       
+      synchronized (_values) {
+        _values.clear();
+      }
+      
       return false;
     }
   }
@@ -933,7 +938,7 @@ public class SessionImpl implements HttpSession, CacheListener {
       }
 
       _isModified = false;
-
+      
       TempOutputStream os = new TempOutputStream();
       HashChunkOutputStream crcOs = new HashChunkOutputStream(os);
       
@@ -1107,7 +1112,7 @@ public class SessionImpl implements HttpSession, CacheListener {
    * This should never be called by Resin code (for logging purposes)
    */
   public void invalidate()
-  {
+  {    
     if (log.isLoggable(Level.FINE))
       log.fine(this + " invalidate");
 
@@ -1120,9 +1125,10 @@ public class SessionImpl implements HttpSession, CacheListener {
    * Called by the session manager for a session timeout
    */
   public void timeout()
-  {
-    if (! isValid())
-      return;
+  {    
+    // server/12i7
+    //if (! isValid())
+    //  return;
 
     if (! _manager.isPersistenceEnabled()) {
       // if no persistent store then invalidate
@@ -1149,10 +1155,10 @@ public class SessionImpl implements HttpSession, CacheListener {
    */
   @Override
   public void removeEvent()
-  {
+  {    
     synchronized (this) {
       if (_state.isInvalidating() || _useCount.get() <= 0) {
-        _state = _state.toLru();
+        _state = _state.toLru();        
       }
     }
 
@@ -1162,19 +1168,22 @@ public class SessionImpl implements HttpSession, CacheListener {
                       _useCount));
     }
 
-    if (log.isLoggable(Level.FINE))
-      log.fine(this + " remove");
+    if (log.isLoggable(Level.FINE)) {
+      log.fine(this + " remove " + _state);
+    }
 
     long now = CurrentTime.getCurrentTime();
 
     // server/015k, server/10g2
     if (_state.isInvalidating()
         || _manager.isDestroyOnLru()
-        || _accessTime + getMaxInactiveInterval() < now) {
+        || _accessTime + getMaxInactiveInterval() < now) {      
       notifyDestroy();
     }
-
+    
     invalidateLocal();
+
+    // timeout();
   }
 
   private void notifyDestroy()
@@ -1184,16 +1193,16 @@ public class SessionImpl implements HttpSession, CacheListener {
     if (_clusterObject != null && ! _clusterObject.isPrimary())
       return;
     */
-
+    
     ArrayList<HttpSessionListener> listeners = _manager.getListeners();
 
-    if (listeners != null) {
+    if (listeners != null) {      
       HttpSessionEvent event = new HttpSessionEvent(this);
 
       for (int i = listeners.size() - 1; i >= 0; i--) {
         HttpSessionListener listener;
         listener = (HttpSessionListener) listeners.get(i);
-
+        
         listener.sessionDestroyed(event);
       }
     }
@@ -1255,7 +1264,7 @@ public class SessionImpl implements HttpSession, CacheListener {
    * Invalidates the session.
    */
   private void invalidate(Logout logout)
-  {
+  {    
     if (isClosed()) {
       throw new IllegalStateException(L.l("{0}: Can't call invalidate() when session is no longer valid.",
                                           this));
@@ -1295,8 +1304,10 @@ public class SessionImpl implements HttpSession, CacheListener {
       if (state.isInvalidating() && _manager.getSessionStore() != null) {
         boolean isRemove = false;
 
-        /*
-        if (logout == Logout.TIMEOUT) {
+        // server/018z vs server/01ny
+        isRemove = true;
+
+        if (! isRemove && logout == Logout.TIMEOUT) {
           // server/016r
           ExtCacheEntry entry
             = _manager.getSessionStore().peekExtCacheEntry(_id);
@@ -1305,13 +1316,10 @@ public class SessionImpl implements HttpSession, CacheListener {
             isRemove = true;
           }
         }
-        else
+        else {
           isRemove = true;
-          */
+        }
         
-        // server/018z
-        isRemove = true;
-
         if (isRemove) {
           _manager.getSessionStore().remove(_id);
         }
@@ -1327,21 +1335,28 @@ public class SessionImpl implements HttpSession, CacheListener {
    * unbinds the session and saves if necessary.
    */
   private void invalidateLocal()
-  {
-    if (! isClosed() && ! _state.isInvalidating()) {
-      if (_manager.isSaveOnlyOnShutdown()) {
+  {    
+    if (! isClosed() && ! _state.isInvalidating()) {      
+      if (_manager.isSaveOnlyOnShutdown()) {        
         save();
       }
     }
-
+    
     unbind(); // we're invalidating, not passivating
+
+    // server/12i7
+    Login login = _manager.getWebApp().getLogin();
+
+    if (login != null) {
+      login.sessionInvalidate(this, true);
+    }
   }
 
   /**
    * Cleans up the session.
    */
   public void unbind()
-  {
+  {    
     if (_values.size() == 0) {
       return;
     }

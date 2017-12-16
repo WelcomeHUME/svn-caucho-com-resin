@@ -664,16 +664,10 @@ class WatchdogChildProcess
 
     jvmArgs.add(_watchdog.getJavaExe());
     
-    boolean isEndorsed = false;
-
     // user args are first so they're displayed by ps
     for (String arg : _watchdog.getJvmArgs()) {
       if (! isResinProperty(arg)) {
         jvmArgs.add(arg);
-      }
-      
-      if (arg.startsWith("-Djava.endorsed.dirs")) {
-        isEndorsed = true;
       }
     }
 
@@ -689,22 +683,6 @@ class WatchdogChildProcess
     
     Path resinHome = _watchdog.getResinHome();
     Path resinRoot = _watchdog.getResinRoot();
-    
-    if (! isEndorsed) {
-      String endorsed = System.getProperty("java.endorsed.dirs");
-      
-      String resinEndorsed = resinHome.getNativePath() + File.separator + "endorsed";
-      
-      resinEndorsed += (File.pathSeparator
-                        + resinRoot .getNativePath() + File.separator + "endorsed");
-      
-      if (endorsed != null)
-        endorsed = endorsed + File.pathSeparator + resinEndorsed;
-      else
-        endorsed = resinEndorsed;
-      
-      jvmArgs.add("-Djava.endorsed.dirs=" + endorsed);
-    }
     
     // #2567
     jvmArgs.add("-Djavax.management.builder.initial=com.caucho.jmx.MBeanServerBuilderImpl");
@@ -782,10 +760,20 @@ class WatchdogChildProcess
       jvmMode = "-server";
     }
     
+    /*
     if (! jvmArgs.contains("-server")
         && ! jvmArgs.contains("-client")
         && ! CauchoSystem.isWindows() && ! "none".equals(jvmMode)
-        && jvmMode != null && ! "".equals(jvmMode)) {
+        && jvmMode != null 
+        && ! "".equals(jvmMode)) {
+      // #3331, windows can't add -server automatically
+      jvmArgs.add(jvmMode);
+    }
+    */
+    
+    if (! CauchoSystem.isWindows() && ! "none".equals(jvmMode)
+        && jvmMode != null 
+        && ! "".equals(jvmMode)) {
       // #3331, windows can't add -server automatically
       jvmArgs.add(jvmMode);
     }
@@ -993,17 +981,26 @@ class WatchdogChildProcess
     RotateLog log = new RotateLog();
     log.setPath(jvmPath);
     log.setRolloverSizeBytes(64L * 1024 * 1024);
-    
-    if (_watchdog.getStdoutLog() != null)
+
+    if (_watchdog.getStdoutLog() != null) {
       _watchdog.getStdoutLog().configure(log);
+    }
 
     log.init();
     
     RotateStream rotateStream = log.getRotateStream();
 
-    // _watchdog.getConfig().logInit(rotateStream);
+    // server/6e82
+    if (_watchdog.getStdoutLog() == null) {
+      String logTail = jvmPath.getTail();
+      int p = logTail.lastIndexOf('.');
+      String logName = logTail.substring(0, p);
+      
+      _watchdog.getConfig().logInit(logName, rotateStream.getRolloverLog());
+      rotateStream.getRolloverLog().init();
+      rotateStream.init();
+    }
     
-    // rotateStream.init();
     return rotateStream.getStream();
   }
 

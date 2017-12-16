@@ -519,11 +519,13 @@ public class HostContainer implements InvocationBuilder {
     
     Host defaultHost = getHost("", 0);
     
-    if (defaultHost != null)
+    if (defaultHost != null) {
       return defaultHost;
+    }
     else {
-      if (_errorHost == null)
+      if (_errorHost == null) {
         _errorHost = createErrorHost();
+      }
 
       return _errorHost;
     }
@@ -553,6 +555,10 @@ public class HostContainer implements InvocationBuilder {
 
     _hostDeploy.stop();
     
+    if (_errorHost != null) {
+      _errorHost.stop();
+    }
+    
     // _classLoader.stop();
   }
 
@@ -567,6 +573,11 @@ public class HostContainer implements InvocationBuilder {
       return;
 
     _hostDeploy.destroy();
+    
+    if (_errorHost != null) {
+      System.out.println("DEST: " + _errorHost);
+      _errorHost.destroy();
+    }
 
     _classLoader.destroy();
   }

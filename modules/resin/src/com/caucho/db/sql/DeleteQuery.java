@@ -70,34 +70,42 @@ class DeleteQuery extends Query {
     TableIterator []rows = new TableIterator[1];
 
     try {
-      rows[0] = _table.createTableIterator();
-      context.init(xa, rows, isReadOnly());
-      
-      if (! start(rows, rows.length, context, xa)) {
-        return;
-      }
-
-      do {
-        context.lock();
-        
+      synchronized (_table) {
         try {
-          if (isSelect(context) && rows[0].delete()) {
-            context.setRowUpdateCount(++count);
+          rows[0] = _table.createTableIterator();
+          context.init(xa, rows, isReadOnly());
+
+          if (! start(rows, rows.length, context, xa)) {
+            return;
           }
+
+          do {
+            if (! context.lock()) {
+              throw new IllegalStateException("unable to lock for delete");
+            }
+
+            try {
+              if (isSelect(context) && rows[0].delete()) {
+                context.setRowUpdateCount(++count);
+              }
+            } finally {
+              context.unlock();
+            }
+
+            xa.commit();
+          } while (nextTuple(rows, rows.length, context, xa));
+        } catch (IOException e) {
+          throw new SQLExceptionWrapper(e);
         } finally {
-          context.unlock();
+          // autoCommitWrite must be before freeRows in case freeRows
+          // throws an exception
+          context.close();
+
+          freeRows(rows, rows.length);
         }
-        
-        xa.commit();
-      } while (nextTuple(rows, rows.length, context, xa));
-    } catch (IOException e) {
-      throw new SQLExceptionWrapper(e);
+      }
     } finally {
-      // autoCommitWrite must be before freeRows in case freeRows
-      // throws an exception
-      context.close();
-      
-      freeRows(rows, rows.length);
+      _table.wakeWriter();
     }
   }
 

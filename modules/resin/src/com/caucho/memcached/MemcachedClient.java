@@ -40,16 +40,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
-import javax.cache.Cache;
-import javax.cache.Configuration;
-import javax.cache.CacheException;
-import javax.cache.CacheMXBean;
-import javax.cache.CacheManager;
-import javax.cache.CacheStatistics;
-import javax.cache.Status;
-import javax.cache.event.CacheEntryEventFilter;
-import javax.cache.event.CacheEntryListener;
 
+import com.caucho.cache.Cache;
+import com.caucho.cache.CacheException;
+import com.caucho.cache.CacheMXBean;
+import com.caucho.cache.CacheManager;
+import com.caucho.cache.CacheStatistics;
+import com.caucho.cache.Configuration;
+import com.caucho.cache.Status;
+import com.caucho.cache.event.CacheEntryEventFilter;
+import com.caucho.cache.event.CacheEntryListener;
 import com.caucho.cloud.loadbalance.LoadBalanceBuilder;
 import com.caucho.cloud.loadbalance.LoadBalanceManager;
 import com.caucho.cloud.loadbalance.LoadBalanceService;
@@ -503,6 +503,8 @@ public class MemcachedClient implements Cache
     ClientSocket client = null;
     long idleStartTime = CurrentTime.getCurrentTime();
     
+    long valueDataTime = 0;
+    
     CacheImpl cache = getLocalCache();
     
     boolean isValid = false;
@@ -535,7 +537,7 @@ public class MemcachedClient implements Cache
       out.setDisableClose(true);
       
       //out.print(value);
-      boolean v = cache.loadData(valueDataId, out);
+      boolean v = cache.loadData(valueDataId, valueDataTime, out);
       
       out.setDisableClose(false);
       

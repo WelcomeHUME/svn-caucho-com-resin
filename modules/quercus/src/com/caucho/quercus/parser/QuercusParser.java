@@ -3625,11 +3625,12 @@ public class QuercusParser {
 
     case BINARY:
       try {
-        if (isUnicodeSemantics()) {
-          BinaryValue value
-            = (BinaryValue) _lexeme.toBinaryValue(_scriptEncoding);
+        if (isUnicodeSemantics()) {          
+          BinaryBuilderValue sb = new BinaryBuilderValue();
+          
+          sb.append(_lexeme);
 
-          return _factory.createBinary(value);
+          return _factory.createBinary(sb);
         }
         else {
           return _factory.createString(_lexeme);

@@ -74,7 +74,8 @@ import com.caucho.vfs.WriteStream;
  * </pre>
  */
 @Module
-public class Table extends BlockStore {
+public class Table extends BlockStore
+{
   private final static Logger log
     = Logger.getLogger(Table.class.getName());
   private final static L10N L = new L10N(Table.class);
@@ -349,6 +350,10 @@ public class Table extends BlockStore {
                             table));
           }
         }
+        
+        if (table.getAllocation(0) != BlockStore.ALLOC_DATA) {
+          throw new IllegalStateException("Invalid table load");
+        }
 
         table.writeStartupTimestamp();
 
@@ -417,6 +422,8 @@ public class Table extends BlockStore {
     _database.addTable(this);
 
     writeStartupTimestamp();
+    
+    wakeWriter();
   }
 
   private void writeStartupTimestamp()
@@ -793,7 +800,12 @@ public class Table extends BlockStore {
 
       isValid = true;
     } catch (Exception e) {
-      log.log(Level.WARNING, e.toString(), e);
+      if (log.isLoggable(Level.FINE)) {
+        log.log(Level.FINE, e.toString(), e);
+      }
+      else {
+        log.warning(e.toString());
+      }
     } finally {
       if (iter != null)
         iter.free();
@@ -986,7 +998,7 @@ public class Table extends BlockStore {
         if (rowOffset >= 0) {
           insertRow(queryContext, xa, columns, values,
                     block, rowOffset);
-
+          
           block.saveAllocation();
 
           _rowAllocator.freeRowBlockId(blockId);
@@ -1025,7 +1037,11 @@ public class Table extends BlockStore {
     iter.init(queryContext);
 
     boolean isOkay = false;
-    queryContext.lock();
+    
+    if (! queryContext.lock()) {
+      log.warning("Unable to lock table");
+      return;
+    }
 
     try {
       iter.setRow(block, rowOffset);
@@ -1037,11 +1053,19 @@ public class Table extends BlockStore {
       for (int i = rowOffset + _rowLength - 1; rowOffset < i; i--)
         buffer[i] = 0;
 
+      // set non-blob fields first
       for (int i = 0; i < columns.size(); i++) {
         Column column = columns.get(i);
         Expr value = values.get(i);
 
         column.setExpr(xa, buffer, rowOffset, value, queryContext);
+      }
+
+      for (int i = 0; i < columns.size(); i++) {
+        Column column = columns.get(i);
+        Expr value = values.get(i);
+
+        column.setExprBlob(xa, buffer, rowOffset, value, queryContext);
       }
 
       // lock for insert, i.e. entries, indices, and validation
@@ -1055,6 +1079,8 @@ public class Table extends BlockStore {
 
           column.setIndex(xa, buffer, rowOffset, rowAddr, queryContext);
         }
+        
+        xa.writeData(); // 
 
         buffer[rowOffset] = (byte) ((buffer[rowOffset] & ~ROW_MASK) | ROW_VALID);
 
@@ -1095,6 +1121,7 @@ public class Table extends BlockStore {
         throw e;
       } finally {
         // xa.unlockWrite(_insertLock);
+        queryContext.unlock();
 
         if (! isOkay) {
           delete(xa, block, buffer, rowOffset, false);
@@ -1135,7 +1162,7 @@ public class Table extends BlockStore {
     byte rowState = buffer[rowOffset];
 
     //if ((rowState & ROW_MASK) == 0) {
-    if (rowState == 0) {
+    if ((rowState & ROW_MASK) != ROW_VALID) {
       return false;
     }
 
@@ -1144,7 +1171,11 @@ public class Table extends BlockStore {
     Column []columns = _row.getColumns();
 
     for (int i = 0; i < columns.length; i++) {
-      columns[i].deleteData(xa, buffer, rowOffset);
+      try {
+        columns[i].deleteData(xa, buffer, rowOffset);
+      } catch (Exception e) {
+        log.log(Level.WARNING, e.toString(), e);
+      }
     }
 
     if (isDeleteIndex) {

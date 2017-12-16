@@ -97,41 +97,47 @@ class UpdateQuery extends Query {
     context.init(xa, rows, isReadOnly());
     
     try {
-      if (! start(rows, rows.length, context, xa)) {
-        return;
-      }
-
-      do {
-        context.lock();
-        
+      synchronized (_table) {
         try {
-          if (! isSelect(context)) {
-            continue;
+          if (! start(rows, rows.length, context, xa)) {
+            return;
           }
-        
-          TableIterator iter = rows[0];
-        // iter.setDirty();
 
-          for (int i = 0; i < setItems.length; i++) {
-            Column column = setItems[i].getColumn();
-            Expr expr = setItems[i].getExpr();
+          do {
+            context.lock();
 
-            column.set(xa, iter, expr, context);
-          }
+            try {
+              if (! isSelect(context)) {
+                continue;
+              }
+
+              TableIterator iter = rows[0];
+              // iter.setDirty();
+
+              for (int i = 0; i < setItems.length; i++) {
+                Column column = setItems[i].getColumn();
+                Expr expr = setItems[i].getExpr();
+
+                column.set(xa, iter, expr, context);
+              }
+            } finally {
+              context.unlock();
+            }
+	    
+            context.setRowUpdateCount(++count);
+          } while (nextTuple(rows, rows.length, context, xa));
+        } catch (IOException e) {
+          throw new SQLExceptionWrapper(e);
         } finally {
-          context.unlock();
-        }
+          // autoCommitWrite must be before freeRows in case freeRows
+          // throws an exception
+          context.close();
 
-        context.setRowUpdateCount(++count);
-      } while (nextTuple(rows, rows.length, context, xa));
-    } catch (IOException e) {
-      throw new SQLExceptionWrapper(e);
+          freeRows(rows, rows.length);
+        }
+      }
     } finally {
-      // autoCommitWrite must be before freeRows in case freeRows
-      // throws an exception
-      context.close();
-      
-      freeRows(rows, rows.length);
+      _table.wakeWriter();
     }
   }
 

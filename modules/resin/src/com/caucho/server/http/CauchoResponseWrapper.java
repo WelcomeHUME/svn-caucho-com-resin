@@ -290,6 +290,7 @@ public class CauchoResponseWrapper implements CauchoResponse {
     _response.addCookie(cookie);
   }
 
+  @Override
   public String encodeURL(String url)
   {
     return _response.encodeURL(url);
@@ -482,10 +483,32 @@ public class CauchoResponseWrapper implements CauchoResponse {
       return null;
   }
 
+  @Override
   public AbstractHttpResponse getAbstractHttpResponse()
   {
-    if (_response instanceof CauchoResponse)
-      return ((CauchoResponse) _response).getAbstractHttpResponse();
+    ServletResponse response = _response;
+    
+    while (response != null) {
+      if (response instanceof CauchoResponse) {
+        AbstractHttpResponse httpRes;
+        
+        httpRes = ((CauchoResponse) response).getAbstractHttpResponse();
+        
+        if (httpRes != null) {
+          return httpRes;
+        }
+      } 
+      
+      if (response instanceof ServletResponseWrapper) {
+        response = ((ServletResponseWrapper) response).getResponse();
+      }
+      else if (response instanceof ResponseWrapper) {
+        response = ((ResponseWrapper) response).getResponse();
+      }
+      else {
+        response = null;
+      }
+    }
 
     return null;
   }

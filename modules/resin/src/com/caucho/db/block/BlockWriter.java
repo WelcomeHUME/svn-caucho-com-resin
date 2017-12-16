@@ -33,6 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.concurrent.TimeUnit;
 
+import com.caucho.env.shutdown.ShutdownSystem;
 import com.caucho.env.thread.AbstractTaskWorker;
 import com.caucho.util.CurrentTime;
 import com.caucho.util.RingValueQueue;
@@ -50,7 +51,7 @@ public class BlockWriter extends AbstractTaskWorker {
     = new BlockWriteQueue(this);
 
   // private int _queueSize = 2 * 1024;
-  private int _queueSize = 1024;
+  private int _queueSize = 16 * 1024;
 
   private final RingValueQueue<Block> _blockWriteRing
     = new RingValueQueue<Block>(_queueSize);
@@ -66,7 +67,9 @@ public class BlockWriter extends AbstractTaskWorker {
   {
     addDirtyBlockNoWake(block);
 
-    wake();
+    if (! isQueueEmpty()) {
+      wake();
+    }
   }
   
   /**
@@ -100,9 +103,9 @@ public class BlockWriter extends AbstractTaskWorker {
   void addDirtyBlockNoWake(Block block)
   {
     /*if (_queueSize <= 2 * _blockWriteRing.getSize()) {
-      wake();
-    }
-    */
+    wake();
+  }
+  */
 
     if (_blockWriteRing.offer(block, 0, TimeUnit.SECONDS)) {
       return;
@@ -116,10 +119,13 @@ public class BlockWriter extends AbstractTaskWorker {
 
     // if (findBlock(block.getBlockId()) != block) {
     //System.err.println(" OFFER: " + Long.toHexString(block.getBlockId()));
-    if (! _blockWriteRing.offer(block, 60, TimeUnit.SECONDS)) {
-      System.err.println("OFFER_FAILED: " + block
-          + " head:" + _blockWriteRing.getHead()
-          + " tail:" + _blockWriteRing.getTail());
+    if (! _blockWriteRing.offer(block, 180, TimeUnit.SECONDS)) {
+      String message = "OFFER_FAILED: " + block
+                       + " head:" + _blockWriteRing.getHead()
+                       + " tail:" + _blockWriteRing.getTail();
+
+      ShutdownSystem.getCurrent().startFailSafeShutdown("shutting down due to: "
+                                                        + message);
     }
 
     // }
@@ -150,9 +156,17 @@ public class BlockWriter extends AbstractTaskWorker {
   {
     Block writeBlock;
 
+    boolean isCopy = false;
+    
     do {
-      writeBlock = findBlock(blockId);
-    } while (writeBlock != null && ! writeBlock.copyToBlock(block));
+      synchronized (_blockWriteQueue) {
+        writeBlock = findBlock(blockId);
+
+	if (writeBlock != null) {
+	  isCopy = writeBlock.copyToBlock(block);
+	}
+      }
+    } while (writeBlock != null && ! isCopy);
 
     return writeBlock != null;
   }
@@ -226,7 +240,6 @@ public class BlockWriter extends AbstractTaskWorker {
   }
   */
 
-
   boolean XX_waitForComplete(long timeout)
   {
     wake();
@@ -291,6 +304,13 @@ public class BlockWriter extends AbstractTaskWorker {
     // return _blockWriteQueue.isEmpty();
     return _blockWriteRing.isEmpty();
   }
+  
+  public void wakeIfPending()
+  {
+    if (! isQueueEmpty()) {
+      wake();
+    }
+  }
 
   private Block peekFirstBlock()
   {
@@ -311,7 +331,9 @@ public class BlockWriter extends AbstractTaskWorker {
     }
     */
 
-    _blockWriteRing.poll();
+    synchronized (_blockWriteRing) {
+      _blockWriteRing.poll();
+    }
   }
 
   @Override

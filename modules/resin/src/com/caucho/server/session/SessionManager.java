@@ -76,8 +76,10 @@ import com.caucho.server.distcache.PersistentStoreConfig;
 import com.caucho.server.webapp.WebApp;
 import com.caucho.util.Alarm;
 import com.caucho.util.AlarmListener;
+import com.caucho.util.ByteBuffer;
 import com.caucho.util.Crc64;
 import com.caucho.util.CurrentTime;
+import com.caucho.util.Hex;
 import com.caucho.util.L10N;
 import com.caucho.util.LruCache;
 import com.caucho.util.RandomUtil;
@@ -1407,7 +1409,7 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
     }
 
     SessionImpl session = _sessions.get(sessionId);
-    
+
     if (session != null) {
       if (! session.isValid()) {
         session = null;
@@ -1425,7 +1427,7 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
         && sessionId != null
         && _sessionStore != null) {
       ExtCacheEntry entry = _sessionStore.getExtCacheEntry(sessionId);
-
+      
       if (entry != null && ! entry.isValueNull()) {
         session = create(sessionId, now, isCreate);
 
@@ -1439,32 +1441,28 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
           session.invalidateTimeout();
           session = null;
         }
-        else if (session.load(isNew)) {
-          session.addUse();
-
-          if (isCreate) {
-            // TCK only set access on create
-            session.setAccess(now);
-          }
-
-          return session;
-        }
         else {
-          // if the load failed, then the session died out from underneath
-          if (! isNew) {
-            if (log.isLoggable(Level.FINER))
-              log.fine(session + " load failed for existing session");
+          session.addUse();
+          
+          if (session.load(isNew)) {
+            if (isCreate) {
+              // TCK only set access on create
+              session.setAccess(now);
+            }
 
-            // server/0174
-            session.reset(0);
-            /*
-          session.setModified();
+            return session;
+          }
+          else {
+            session.endUse();
+            
+            // if the load failed, then the session died out from underneath
+            if (! isNew) {
+              if (log.isLoggable(Level.FINER))
+                log.fine(session + " load failed for existing session");
 
-          // Return the existing session for timing reasons, e.g.
-          // if a second request hits before the first has finished saving
-
-          return session;
-             */
+              // server/0174
+              session.reset(0);
+            }
           }
         }
       }
@@ -1628,8 +1626,9 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
 
     SessionImpl session = create(id, now, true);
 
-    if (session == null)
+    if (session == null) {
       return null;
+    }
 
     session.addUse();
 
@@ -1763,12 +1762,18 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
     if (cache == null)
       return null;
 
+    if (! _isHessianSerialization) {
+      return "session is not hessian";
+    }
+    
     try {
       TempOutputStream os = new TempOutputStream();
 
       if (cache.get(id, os)) {
         InputStream is = os.getInputStream();
 
+        is = new HashChunkInputStream(is);
+        
         StringWriter writer = new StringWriter();
 
         HessianDebugInputStream dis
@@ -1779,7 +1784,7 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
 
         return writer.toString();
       }
-
+      
       os.close();
     } catch (Exception e) {
       log.log(Level.FINE, e.toString(), e);
@@ -1931,8 +1936,9 @@ public final class SessionManager implements SessionCookieConfig, AlarmListener
         SessionImpl session = _sessionList.get(i);
 
         try {
-          _sessions.remove(session.getId());
+          //_sessions.remove(session.getId());
           
+          // server/12i7
           session.timeout();
         } catch (Throwable e) {
           log.log(Level.FINE, e.toString(), e);

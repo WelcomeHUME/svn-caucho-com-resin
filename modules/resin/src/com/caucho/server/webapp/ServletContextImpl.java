@@ -303,17 +303,19 @@ public class ServletContextImpl extends ServletContextCompat
 
     Path rootDirectory = getRootDirectory();
     Path path = rootDirectory.lookupNative(realPath);
-
+    
     URL url = new URL("jndi:/server" + getContextPath() + name);
+    URL metaUrl;
 
     if (path.exists() && name.startsWith("/resources/")) {
       return url;
     }
     else if (path.isFile()) {
-      return url;
+      // #6049, server/1t15
+      return new URL(path.getURL());
     }
-    else if (getClassLoader().getResource("META-INF/resources/" + realPath) != null) {
-      return url;
+    else if ((metaUrl = getClassLoader().getResource("META-INF/resources" + name)) != null) {
+      return metaUrl;
     }
     else if (path.exists()) {
       return new URL(path.getURL());
@@ -394,6 +396,7 @@ public class ServletContextImpl extends ServletContextCompat
   /**
    * Returns the resource for a uripath as an input stream.
    */
+  @Override
   public InputStream getResourceAsStream(String uripath)
   {
     Path rootDirectory = getRootDirectory();

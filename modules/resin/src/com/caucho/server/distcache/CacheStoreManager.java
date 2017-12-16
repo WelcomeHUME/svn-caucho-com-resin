@@ -292,6 +292,7 @@ public final class CacheStoreManager implements CacheEntryFactory
     MnodeEntry mnodeValue
       = new MnodeEntry(oldEntryValue,
                        oldEntryValue.getValueDataId(),
+                       oldEntryValue.getValueDataTime(),
                        accessTimeout, 
                        lastAccessTime);
 
@@ -310,7 +311,7 @@ public final class CacheStoreManager implements CacheEntryFactory
 
       CacheConfig config = null;
       DistCacheEntry entry = loadLocalEntry(key, config);
-    
+      
       return entry.localUpdate(update, source.getInputStream());
     } catch (IOException e) {
       throw new RuntimeException(e);

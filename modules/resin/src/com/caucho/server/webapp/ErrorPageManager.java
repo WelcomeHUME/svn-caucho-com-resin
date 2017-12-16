@@ -184,6 +184,14 @@ public class ErrorPageManager {
   }
 
   /**
+   * Returns true if we should return a development-friendly error page.
+   */
+  protected boolean isErrorPageServerId()
+  {
+    return _server.isErrorPageServerId() || isDevelopmentModeErrorPage();
+  }
+
+  /**
    * Displays a parse error.
    */
   public void sendServletError(Throwable e,
@@ -336,8 +344,12 @@ public class ErrorPageManager {
       location = getErrorPage(rootExn);
     }
 
-    if (location == null)
+    if (location == null && rootExn instanceof BadRequestException) {
+      location = getErrorPage(400);
+    }
+    else if (location == null) {
       location = getErrorPage(500);
+    }
 
     if (location == null && _defaultLocation == null && _parent != null) {
       _parent.sendServletError(e, req, res);
@@ -582,8 +594,9 @@ public class ErrorPageManager {
 
       out.println(version);
 
-      if (server != null)
+      if (server != null && isErrorPageServerId()) {
         out.println("Server: '" + server.getServerId() + "'");
+      }
 
       out.println("</small>");
     }

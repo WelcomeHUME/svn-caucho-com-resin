@@ -565,8 +565,9 @@ public final class InjectManager
 
     InjectManager parent = null;
 
-    if (envLoader != null && envLoader != _systemClassLoader)
+    if (envLoader != null && envLoader != _systemClassLoader) {
       parent = create(envLoader.getParent());
+    }
 
     synchronized (_localContainer) {
       manager = _localContainer.getLevel(envLoader);
@@ -1355,7 +1356,7 @@ public final class InjectManager
   /**
    * Adds a new bean definition to the manager
    */
-  public <T> void addBeanImpl(Bean<T> bean, Annotated ann)
+  public synchronized <T> void addBeanImpl(Bean<T> bean, Annotated ann)
   {
     if (bean == null)
       return;
@@ -1774,7 +1775,7 @@ public final class InjectManager
       discoverScanClass(scanClass);
       processPendingAnnotatedTypes();
     }
-      
+
     ArrayList<TypedBean> localBeans = _selfBeanMap.get(rawClass);
     
     if (localBeans != null) {
@@ -3638,7 +3639,7 @@ public final class InjectManager
 
       while (e.hasMoreElements()) {
         URL url = e.nextElement();
-
+        
         if (serviceSet.contains(url))
           continue;
 
@@ -3646,8 +3647,7 @@ public final class InjectManager
 
         InputStream is = null;
         try {
-          is = url.openStream();
-          ReadStream in = Vfs.openRead(is);
+          ReadStream in = Vfs.openRead(url.toString());
 
           String line;
 

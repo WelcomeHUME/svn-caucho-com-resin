@@ -937,9 +937,18 @@ public class ConnectionPool extends AbstractManagedObject
         if (mConn != null) {
           poolItem = findPoolItem(mConn);
             
-          if (poolItem == null)
-            throw new IllegalStateException(L.l("Unexpected non-matching PoolItem found for {0}",
-                                                mConn));
+          if (poolItem != null) {
+            break;
+          }
+          
+          log.warning(L.l("Unexpected non-matching PoolItem found for {0}",
+                          mConn));
+
+          try {
+            mConn.destroy();
+          } catch (Exception e) {
+            log.log(Level.FINE, e.toString(), e);
+          }
 
           break;
         }
@@ -1076,8 +1085,9 @@ public class ConnectionPool extends AbstractManagedObject
     int size = _connectionPool.size();
     int createCount = _createCount.incrementAndGet();
 
-    if (createCount + size <= _maxConnections + _maxOverflowConnections)
+    if (createCount + size <= _maxConnections + _maxOverflowConnections) {
       return true;
+    }
       
     _createCount.decrementAndGet();
     String message = L.l("{0} cannot create overflow connection after {1}ms"
@@ -1188,14 +1198,18 @@ public class ConnectionPool extends AbstractManagedObject
   void toIdle(ManagedPoolItem item)
   {
     try {
-      if (_maxConnections < _connectionPool.size()
-          || item.isConnectionError()) {
-        return;
-      }
-
       ManagedConnection mConn = item.getManagedConnection();
 
       if (mConn == null) {
+        return;
+      }
+
+      if (item.isConnectionError()) {
+        removeItem(item, mConn);
+        
+        return;
+      }
+      else if (_maxConnections < _connectionPool.size()) {
         return;
       }
 
@@ -1206,13 +1220,15 @@ public class ConnectionPool extends AbstractManagedObject
       if (_idlePool.size() == 0)
         _idlePoolExpire = now + _idleTimeout;
 
-      if (_idlePoolExpire < now) {
-        // shrink the idle pool when non-empty for idleTimeout
-        _idlePoolExpire = now + _idleTimeout;
-      }
-      else if (_idlePool.add(mConn)) {
-        item = null;
-        return;
+      synchronized (_connectionPool) {
+        if (_idlePoolExpire < now) {
+          // shrink the idle pool when non-empty for idleTimeout
+          _idlePoolExpire = now + _idleTimeout;
+        }
+        else if (_idlePool.add(mConn)) {
+          item = null;
+          return;
+        }
       }
     } catch (Exception e) {
       log.log(Level.FINE, e.toString(), e);
@@ -1328,8 +1344,13 @@ public class ConnectionPool extends AbstractManagedObject
 
         userPoolItem = createConnection(_mcf, subject, info, null);
         
-        if (userPoolItem != null)
+        if (userPoolItem != null) {
+          /*
           userPoolItem.toIdle();
+          userPoolItem.clearTransaction();
+          */
+          userPoolItem.close();
+        }
       }
     } catch (Exception e) {
       e.printStackTrace();

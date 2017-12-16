@@ -71,6 +71,10 @@ abstract public class Column {
     _columnOffset = _row.getLength();
     _nullOffset = _row.getNullOffset();
     _nullMask = _row.getNullMask();
+
+    if ((_nullMask & 0x3) != 0 && _nullOffset == 0) {
+	Thread.dumpStack();
+    }
     
     if (_nullOffset < 0) {
       throw new IllegalStateException();
@@ -423,6 +427,20 @@ abstract public class Column {
       setNull(block, rowOffset);
     else
       setString(xa, block, rowOffset, expr.evalString(context));
+  }
+  
+  /**
+   * Sets the column based on an expression.
+   *
+   * @param block the block's buffer
+   * @param rowOffset the offset of the row in the block
+   * @param expr the expression to store
+   */
+  void setExprBlob(DbTransaction xa,
+                   byte []block, int rowOffset,
+                   Expr expr, QueryContext context)
+    throws SQLException
+  {
   }
   
   /**

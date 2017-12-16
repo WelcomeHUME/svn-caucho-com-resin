@@ -110,6 +110,8 @@ public class SerializerFactory extends AbstractSerializerFactory
   private boolean _isEnableUnsafeSerializer
     = (UnsafeSerializer.isEnabled()
         && UnsafeDeserializer.isEnabled());
+  
+  private ClassFactory _classFactory;
 
   public SerializerFactory()
   {
@@ -210,6 +212,23 @@ public class SerializerFactory extends AbstractSerializerFactory
     else
       return serializer;
   }
+  
+  public Class<?> loadSerializedClass(String className)
+    throws ClassNotFoundException
+  {
+    return getClassFactory().load(className);
+  }
+  
+  public ClassFactory getClassFactory()
+  {
+    synchronized (this) {
+      if (_classFactory == null) {
+        _classFactory = new ClassFactory(getClassLoader());
+      }
+      
+      return _classFactory;
+    }
+  }
 
   /**
    * Returns the serializer for a class.
@@ -307,8 +326,9 @@ public class SerializerFactory extends AbstractSerializerFactory
       return _collectionSerializer;
     }
 
-    else if (cl.isArray())
+    else if (cl.isArray()) {
       return new ArraySerializer();
+    }
 
     else if (Throwable.class.isAssignableFrom(cl))
       return new ThrowableSerializer(cl, getClassLoader());
@@ -420,6 +440,11 @@ public class SerializerFactory extends AbstractSerializerFactory
     else
       factory = ContextSerializerFactory.create(_systemClassLoader);
 
+    deserializer = factory.getDeserializer(cl.getName());
+    
+    if (deserializer != null)
+      return deserializer;
+    
     deserializer = factory.getCustomDeserializer(cl);
 
     if (deserializer != null)
@@ -454,7 +479,7 @@ public class SerializerFactory extends AbstractSerializerFactory
 
     else
       deserializer = getDefaultDeserializer(cl);
-
+    
     return deserializer;
   }
 
@@ -679,7 +704,10 @@ public class SerializerFactory extends AbstractSerializerFactory
     }
     else {
       try {
-        Class cl = Class.forName(type, false, getClassLoader());
+        //Class cl = Class.forName(type, false, getClassLoader());
+        
+        Class cl = loadSerializedClass(type);
+        
         deserializer = getDeserializer(cl);
       } catch (Exception e) {
         log.warning("Hessian/Burlap: '" + type + "' is an unknown class in " + getClassLoader() + ":\n" + e);

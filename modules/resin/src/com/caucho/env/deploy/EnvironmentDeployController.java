@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -202,17 +203,21 @@ abstract public class
 
   private void addConfigController(C config)
   {
-    if (config.getStartupMode() != null)
+    if (config.getStartupMode() != null) {
       setStartupMode(config.getStartupMode());
+    }
 
-    if (config.getRedeployCheckInterval() != null)
+    if (config.getRedeployCheckInterval() != null) {
       setRedeployCheckInterval(config.getRedeployCheckInterval());
+    }
 
-    if (config.getRedeployMode() != null)
+    if (config.getRedeployMode() != null) {
       setRedeployMode(config.getRedeployMode());
+    }
 
-    if (config.getExpandCleanupFileset() != null)
+    if (config.getExpandCleanupFileset() != null) {
       addParentExpandCleanupFileSet(config.getExpandCleanupFileset());
+    }
   }
 
   /**
@@ -544,7 +549,7 @@ abstract public class
   
   public Map<String,String> getRepositoryMetaData()
   {
-    HashMap<String,String> map = new HashMap<String,String>();
+    Map<String,String> map = new TreeMap<String,String>();
     
     Map<String,RepositoryTagEntry> tagMap = getRepository().getTagMap();
     

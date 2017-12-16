@@ -131,7 +131,8 @@ class WatchdogManager implements AlarmListener {
 
     Vfs.setPwd(_args.getRootDirectory());
     
-    Path logPath = getLogDirectory().lookup("watchdog-manager.log");
+    String logName = "watchdog-manager";
+    Path logPath = getLogDirectory().lookup(logName + ".log");
     
     try {
       getLogDirectory().mkdirs();
@@ -139,13 +140,22 @@ class WatchdogManager implements AlarmListener {
       log().log(Level.ALL, e.toString(), e);
     }
     
-    // #4333 - check watchdog-manager.log can be written
-    WriteStream testOut = logPath.openAppend();
-    testOut.close();
+    if (! getLogDirectory().isDirectory()) {
+      log().warning("Watchdog can't open log directory: " + getLogDirectory().getNativePath()
+                    + " as user " + System.getProperty("user.name"));
+    }
+    
+    try {
+      // #4333 - check watchdog-manager.log can be written
+      WriteStream testOut = logPath.openAppend();
+      testOut.close();
+    } catch (Exception e) {
+      log().log(Level.WARNING, "Log-file: " + logPath + " " + e, e);
+    }
     
     if (! logPath.canWrite()) {
-      throw new ConfigException("Cannot open " + logPath.getNativePath()
-                                + " required for Resin start. Please check permissions");
+      throw new ConfigException("Cannot open " + logPath.getNativePath() + " as '" + System.getProperty("user.name") 
+                                + "' required for Resin start. Please check permissions");
     }
 
     RotateStream logStream = RotateStream.create(logPath);
@@ -153,6 +163,8 @@ class WatchdogManager implements AlarmListener {
     logStream.init();
     WriteStream out = logStream.getStream();
     out.setDisableClose(true);
+    
+    boolean isLogDirectoryExists = getLogDirectory().exists();
 
     EnvironmentStream.setStdout(out);
     EnvironmentStream.setStderr(out);
@@ -218,7 +230,6 @@ class WatchdogManager implements AlarmListener {
                                               serverId));
       }
     }
-    boolean isLogDirectoryExists = getLogDirectory().exists();
 
     JniBoot boot = new JniBoot();
     Path logDirectory = getLogDirectory();
@@ -231,7 +242,7 @@ class WatchdogManager implements AlarmListener {
       }
     }
 
-    server.getConfig().logInit(logStream);
+    server.getConfig().logInit(logName, logStream.getRolloverLog());
     
     startWatchdogSystem(resin, server);
   }

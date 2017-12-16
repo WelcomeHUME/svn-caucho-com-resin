@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2015 Caucho Technology -- all rights reserved
+ * Copyright (c) 1998-2016 Caucho Technology -- all rights reserved
  *
  * This file is part of Resin(R) Open Source
  *
@@ -54,7 +54,7 @@ namespace Caucho
     private Process _process;
     private ResinArgs ResinArgs;
 
-    private static Mutex mutex = new Mutex(false, @"Global\com.caucho.Resin");
+    private Mutex _mutex;
 
     private Resin(ResinArgs args)
     {
@@ -63,6 +63,13 @@ namespace Caucho
       _resinHome = ResinArgs.ResinHome;
       _rootDirectory = ResinArgs.ResinRoot;
       _javaHome = ResinArgs.JavaHome;
+
+      //_mutex = new Mutex(false, @"Global\com.caucho.Resin." + _rootDirectory);
+      //_mutex = new Mutex(false, @"Global\com.caucho.Resin");
+
+      if (_mutex == null) {
+          _mutex = new Mutex(false, @"Global\com.caucho.Resin." + _rootDirectory);
+      }
     }
 
     public bool StartResin()
@@ -83,8 +90,15 @@ namespace Caucho
         StringBuilder message = new StringBuilder("Unable to start application. Make sure java is in your path. Use option -verbose for more detail.\n");
         message.Append(e.ToString());
 
-        Info(message.ToString());
-
+        if (ResinArgs.IsService)
+        {
+            Error(message.ToString(), e);
+        }
+        else
+        {
+            Info(message.ToString());
+        }
+    
         return false;
       }
     }
@@ -158,14 +172,14 @@ namespace Caucho
 
     private void ExecuteJava(String command)
     {
-      mutex.WaitOne();
+      _mutex.WaitOne();
       try
       {
         ExecuteJavaImpl(command);
       }
       finally
       {
-        mutex.ReleaseMutex();
+        _mutex.ReleaseMutex();
       }
     }
 
@@ -254,7 +268,7 @@ namespace Caucho
 
           return;
         }
-
+ 
         StringBuilder error = new StringBuilder();
         StringBuilder output = new StringBuilder();
         process.ErrorDataReceived += delegate(Object sendingProcess, DataReceivedEventArgs err)
@@ -269,7 +283,9 @@ namespace Caucho
         process.BeginOutputReadLine();
 
         while (!process.HasExited)
-          process.WaitForExit(500);
+        {
+            process.WaitForExit(500);
+        }
 
         process.CancelErrorRead();
         process.CancelOutputRead();
@@ -353,6 +369,11 @@ namespace Caucho
 
     private void Info(String message, TextWriter writer, bool newLine)
     {
+      if (message.Length > 32000)
+      {
+        message = message.Substring(message.Length - 32000);
+      }
+
       if (writer != null && newLine)
         writer.WriteLine(message);
       else if (writer != null && !newLine)

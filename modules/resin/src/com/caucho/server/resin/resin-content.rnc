@@ -71,6 +71,9 @@ r_cluster-Content =
 
   & r_error-page*
 
+  & (attribute error-page-server-id { r_boolean-Type }
+     | element error-page-server-id { r_boolean-Type })?
+
   & (attribute header-size-max { r_int-Type }
      | element header-size-max { r_int-Type })?
 
@@ -426,7 +429,7 @@ r_openssl = element openssl {
      | element honor-cipher-order { r_boolean-Type })?
 
   & (attribute password { string }
-     | element password { r_string-Group })
+     | element password { r_string-Group })?
 
   & (attribute protocol { string }
      | element protocol { r_string-Group })?
@@ -632,6 +635,9 @@ r_resin-Content =
 
   & (attribute home-server { string }
      | element home-server { string })?
+
+  & (attribute ignore-lock { r_boolean-Type }
+     | element ignore-lock { r_boolean-Type })?
 
   & r_management?
 
@@ -968,6 +974,9 @@ r_watchdog-log = element watchdog-log {
   & r_rollover-period?
 
   & r_rollover-size?
+  
+  & (attribute archive-format { string }
+     | element archive-format { string })?
 }
 
 r_watchdog-manager = element watchdog-manager {

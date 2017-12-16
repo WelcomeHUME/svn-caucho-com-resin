@@ -204,7 +204,7 @@ public class MiscModule extends AbstractQuercusModule {
    * Execute a system command.
    */
   public static String exec(Env env, String command,
-                            @Optional Value output,
+                            @Optional @Reference Value output,
                             @Optional @Reference Value result)
   {
     try {
@@ -242,15 +242,20 @@ public class MiscModule extends AbstractQuercusModule {
           if (! hasCr) {
             line = sb.toString();
             sb.setLength(0);
-            if (output != null)
+            
+            if (output != null && ! output.isDefault()) {
               output.put(env.createString(line));
+            }
           }
           hasCr = false;
         }
         else if (ch == '\r') {
           line = sb.toString();
           sb.setLength(0);
-          output.put(env.createString(line));
+          if (! output.isDefault()) {
+            output.put(env.createString(line));
+          }
+          
           hasCr = true;
         }
         else
@@ -260,7 +265,10 @@ public class MiscModule extends AbstractQuercusModule {
       if (sb.length() > 0) {
         line = sb.toString();
         sb.setLength(0);
-        output.put(env.createString(line));
+        
+        if (output != null && ! output.isDefault()) {
+          output.put(env.createString(line));
+        }
       }
 
       is.close();
@@ -275,7 +283,14 @@ public class MiscModule extends AbstractQuercusModule {
       return line;
     } catch (Exception e) {
       log.log(Level.FINE, e.getMessage(), e);
-      env.warning(e.getMessage(), e);
+
+      if (e.getMessage() != null) {
+        env.warning(e.getMessage(), e);
+      }
+      else {
+        env.warning(e.toString(), e);
+      }
+      e.printStackTrace();
 
       return null;
     }

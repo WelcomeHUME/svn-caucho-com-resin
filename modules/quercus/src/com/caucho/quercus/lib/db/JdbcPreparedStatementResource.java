@@ -201,8 +201,8 @@ public class JdbcPreparedStatementResource
       else if (type == ColumnType.BLOB) {
         _preparedStmt.setBinaryStream(i + 1, value.toInputStream());
       }
-      else if (type == ColumnType.STRING) {
-        _preparedStmt.setString(i + 1, value.toString(env).toString());
+      else if (type == ColumnType.STRING) {        
+        _preparedStmt.setString(i + 1, value.toString());
       }
       else if (type == ColumnType.LOB) {
         setLobParameter(env, i + 1, value);
@@ -301,7 +301,7 @@ public class JdbcPreparedStatementResource
       }
 
       setQuery(query);
-
+      
       if (query.length() == 0) {
         return false;
       }
@@ -345,7 +345,7 @@ public class JdbcPreparedStatementResource
       return true;
 
     }
-    catch (SQLException e) {
+    catch (SQLException e) {      
       setError(env, e);
       return false;
     }

@@ -194,6 +194,7 @@ public class ServletService
   private final Lifecycle _lifecycle;
   private AccessLog _accessLog;
   private int _accessLogBufferSize;
+  private boolean _isErrorPageServerId = true;
 
   /**
    * Creates a new servlet server.
@@ -518,6 +519,22 @@ public class ServletService
   public void setDevelopmentModeErrorPage(boolean isEnable)
   {
     _isDevelopmentModeErrorPage = isEnable;
+  }
+
+  /**
+   * Development mode error pages.
+   */
+  public boolean isErrorPageServerId()
+  {
+    return _isErrorPageServerId;
+  }
+
+  /**
+   * Development mode error pages.
+   */
+  public void setErrorPageServerId(boolean isEnable)
+  {
+    _isErrorPageServerId  = isEnable;
   }
 
   /**
@@ -1125,10 +1142,12 @@ public class ServletService
   {
     WebApp errorWebApp = getErrorWebApp();
     
-    if (errorWebApp != null)
+    if (errorWebApp != null) {
       return errorWebApp.getErrorPageManager();
-    else
+    }
+    else {
       return _errorPageManager;
+    }
   }
 
   /**

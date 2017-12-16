@@ -66,6 +66,12 @@ public class GitCommitJar {
   public GitCommitJar(Path jar)
     throws IOException
   {
+    this(jar.getTail(), jar);
+  }
+
+  public GitCommitJar(String pathName, Path jar)
+    throws IOException
+  {
     if (jar.getScheme().equals("memory")) {
       InputStream is = jar.openRead();
       
@@ -76,14 +82,14 @@ public class GitCommitJar {
       }
     }
     else {
-      init(jar);
+      init(pathName, jar);
     }
   }
 
-  private GitCommitJar(Path jar, boolean isTemp)
+  private GitCommitJar(String pathName, Path jar, boolean isTemp)
     throws IOException
   {
-    init(jar);
+    init(pathName, jar);
     
     _tempJar = jar;
   }
@@ -103,7 +109,7 @@ public class GitCommitJar {
     Path workDir = WorkDir.getLocalWorkDir();
     workDir.mkdirs();
     
-    Path tmpPath = workDir.createTempFile("git", "tmp");
+    Path tmpPath = workDir.createTempFile("git", ".jar");
     WriteStream os = null;
     
     try {
@@ -125,7 +131,7 @@ public class GitCommitJar {
   
       os.close();
       
-      GitCommitJar gitCommitJar = new GitCommitJar(tmpPath, true);
+      GitCommitJar gitCommitJar = new GitCommitJar(tmpPath.getTail(), tmpPath, true);
       
       tmpPath = null;
       
@@ -188,14 +194,14 @@ public class GitCommitJar {
     Path dir = WorkDir.getLocalWorkDir();
     dir.mkdirs();
     
-    Path path = dir.createTempFile("git", "tmp");
+    Path path = dir.createTempFile("git", ".jar");
 
     try {
       WriteStream os = path.openWrite();
       os.writeStream(is);
       os.close();
 
-      init(path);
+      init(path.getTail(), path);
 
       _tempJar = path;
     } catch (IOException e) {
@@ -203,11 +209,12 @@ public class GitCommitJar {
     }
   }
 
-  private void init(Path path)
+  private void init(String pathName, Path path)
     throws IOException
   {
     _jar = JarPath.create(path);
 
+    /*
     HashMap<String,Long> lengthMap = new HashMap<String,Long>();
 
     fillLengthMap(lengthMap, path);
@@ -215,6 +222,19 @@ public class GitCommitJar {
     ReadStream is = path.openRead();
 
     fillCommit(lengthMap, is);
+    */
+    
+    //long len = path.getLength();
+    
+    ReadStream is = null;
+    
+    try {
+      is = path.openRead();
+      
+      _commit.addFile(pathName, 0664, is, path.getLength());
+    } finally {
+      IoUtil.close(is);
+    }
 
     _commit.commit();
   }
@@ -331,6 +351,18 @@ public class GitCommitJar {
       return tree.openFile();
     }
     else {
+      Path jar = _jar.getContainer();
+      
+      ReadStream is = null;
+      
+      try {
+        is = jar.openRead();
+        
+        return GitCommitTree.writeBlob(is, jar.getLength());
+      } finally {
+        IoUtil.close(is);;
+      }
+      /*
       long size = _jar.getJar().getLength(path);
       
       if (size < 0)
@@ -347,6 +379,7 @@ public class GitCommitJar {
         
         zipIs.close();
       }
+      */
     }
   }
 

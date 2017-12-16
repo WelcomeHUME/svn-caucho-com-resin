@@ -230,7 +230,7 @@ public class Period {
   private static long periodEnd(long now, long period, QDate cal)
   {
     if (period < 0) {
-      return Long.MAX_VALUE;
+      return Long.MAX_VALUE / 2;
     }
     else if (period == 0) {
       return now;
@@ -247,7 +247,7 @@ public class Period {
 
       cal.setLocalTime(localTime);
 
-      periodEnd =  cal.getGMTTime();
+      periodEnd = cal.getGMTTime();
     }
 
     else if (period % (30 * DAY) == 0) {
@@ -290,7 +290,7 @@ public class Period {
       periodEnd = cal.getGMTTime();
     }
     
-    if (periodEnd <= now || now + 2 * period <= periodEnd) {
+    if (periodEnd <= now || now + period <= periodEnd) {
       periodEnd = now + period;
     }
     

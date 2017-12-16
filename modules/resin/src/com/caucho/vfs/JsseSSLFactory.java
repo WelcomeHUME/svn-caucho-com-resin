@@ -29,19 +29,6 @@
 
 package com.caucho.vfs;
 
-import com.caucho.config.ConfigException;
-import com.caucho.env.service.RootDirectorySystem;
-import com.caucho.hessian.io.Hessian2Input;
-import com.caucho.hessian.io.Hessian2Output;
-import com.caucho.util.IoUtil;
-import com.caucho.util.L10N;
-
-import javax.annotation.PostConstruct;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -52,8 +39,23 @@ import java.security.Key;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.annotation.PostConstruct;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+
+import com.caucho.config.ConfigException;
+import com.caucho.env.service.RootDirectorySystem;
+import com.caucho.hessian.io.Hessian2Input;
+import com.caucho.hessian.io.Hessian2Output;
+import com.caucho.util.IoUtil;
+import com.caucho.util.L10N;
 
 /**
  * Abstract socket to handle both normal sockets and bin/resin sockets.
@@ -66,7 +68,8 @@ public class JsseSSLFactory implements SSLFactory {
 
   private static Method _honorCipherOrderMethod;
   private static Method _getSSLParametersMethod;
-
+  private static final Method _setSSLParameters;
+  
   private Path _keyStoreFile;
   private String _alias;
   private String _password;
@@ -342,7 +345,15 @@ public class JsseSSLFactory implements SSLFactory {
     }
 
     if (_protocols != null) {
-      sslServerSocket.setEnabledProtocols(_protocols);
+      try {
+        sslServerSocket.setEnabledProtocols(_protocols);
+      } catch (Exception e) {
+        throw ConfigException.create(L.l("Invalid protocols '{0}', expected from list '{1}'\n  {2}",
+                                  Arrays.asList(_protocols),
+                                  Arrays.asList(sslServerSocket.getSupportedProtocols()),
+                                  e.toString()),
+                              e);
+      }
     }
     
     if ("required".equals(_verifyClient))
@@ -368,7 +379,11 @@ public class JsseSSLFactory implements SSLFactory {
         = (SSLParameters) _getSSLParametersMethod.invoke(serverSocket);
 
       _honorCipherOrderMethod.invoke(params, _isHonorCipherOrder);
-
+      
+      if (_setSSLParameters != null) {
+        _setSSLParameters.invoke(serverSocket, params);
+      }
+      
       log.log(Level.FINER, L.l("setting honor-cipher-order {0}",
                                _isHonorCipherOrder));
     } catch (Throwable t) {
@@ -380,8 +395,9 @@ public class JsseSSLFactory implements SSLFactory {
                                     String []forbiddenList)
   {
     for (String forbidden : forbiddenList) {
-      if (cipher.equals(forbidden))
+      if (cipher.indexOf(forbidden) >= 0) {
         return true;
+      }
     }
     
     return false;
@@ -495,6 +511,8 @@ public class JsseSSLFactory implements SSLFactory {
   }
 
   static {
+    Method setSSLParameters = null;
+    
     try {
       Method method = SSLServerSocket.class.getMethod("getSSLParameters");
 
@@ -506,9 +524,13 @@ public class JsseSSLFactory implements SSLFactory {
       method.setAccessible(true);
 
       _honorCipherOrderMethod = method;
+      
+      setSSLParameters = SSLServerSocket.class.getMethod("setSSLParameters", SSLParameters.class);
     } catch (Exception e) {
       log.log(Level.FINER, e.getMessage(), e);
     }
+    
+    _setSSLParameters = setSSLParameters;
   }
 }
 
