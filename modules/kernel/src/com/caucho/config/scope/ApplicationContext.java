@@ -41,7 +41,7 @@ import com.caucho.loader.Environment;
  */
 @Module
 public class ApplicationContext extends AbstractScopeContext {
-  private ContextContainer _context = new ContextContainer();
+  private ContextContainer _context = new ApplicationContextContainer();
 
   /**
    * Returns the current application scope

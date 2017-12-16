@@ -3719,15 +3719,17 @@ public class WebApp extends ServletContextImpl
       throw new IllegalStateException(L.l("webApp must be initialized before starting.  Currently in state {0}.", _lifecycle.getStateName()));
     }
     
-    if (! _lifecycle.toStarting()) {
-      return;
-    }
-
-    StartupTask task = new StartupTask();
+    synchronized (this) {
+      if (_lifecycle.isActive() || _lifecycle.isAfterStopping()) {
+        return;
+      }
+      
+      StartupTask task = new StartupTask();
     
-    ThreadPool.getCurrent().execute(task);
+      ThreadPool.getCurrent().execute(task);
 
-    task.waitFor(getActiveWaitTime());
+      task.waitFor(getActiveWaitTime());
+    }
     // asdf: wait
   }
   
@@ -3735,6 +3737,10 @@ public class WebApp extends ServletContextImpl
   {
     if (! _lifecycle.isAfterInit()) {
       throw new IllegalStateException(L.l("webApp must be initialized before starting.  Currently in state {0}.", _lifecycle.getStateName()));
+    }
+    
+    if (! _lifecycle.toStarting()) {
+      return;
     }
 
     Thread thread = Thread.currentThread();
@@ -4457,8 +4463,8 @@ public class WebApp extends ServletContextImpl
         _parent.buildDispatchInvocation(dispatchInvocation);
       }
       else if (! _lifecycle.waitForActive(_activeWaitTime)) {
-        throw new IllegalStateException(L.l("web-app '{0}' is restarting and is not yet ready to receive requests",
-                                            getVersionContextPath()));
+        throw new IllegalStateException(L.l("web-app '{0}' is restarting and is not yet ready to receive requests. state={1}",
+                                            getVersionContextPath(), _lifecycle));
       }
       else {
         buildIncludeInvocation(includeInvocation);
@@ -4512,11 +4518,14 @@ public class WebApp extends ServletContextImpl
       try {
         accessLog.log(req, res, this);
       } catch (Exception e) {
+        log.log(Level.WARNING, e.toString(), e);
+        /*
         log.warning("AccessLog: " + e);
         
         if (log.isLoggable(Level.FINER)) {
           log.log(Level.FINER, "AccessLog: " + e.toString(), e);
         }
+        */
       }
     }
   }
@@ -4890,7 +4899,7 @@ public class WebApp extends ServletContextImpl
   public long getMaxAge(String uri)
   {
     CacheMapping map = _cacheMappingMap.map(uri);
-
+    
     if (map != null)
       return map.getMaxAge();
     else

@@ -1,4 +1,4 @@
-AC_INIT([resin],4.0.52)
+AC_INIT([resin],4.0.54)
 AC_CONFIG_AUX_DIR(automake)
 #AC_CONFIG_MACRO_DIR([m4])
 
@@ -450,21 +450,25 @@ fi
 # heuristics for finding the Apache include directory
 #
 if test -z "${apache_include}" -a -n "${apxs}"; then
-  apache_include=`${apxs} -q INCLUDEDIR`
+  APACHE_INC=`${apxs} -q EXTRA_INCLUDES`
+
+  if test -x "${APACHE_INC}"; then
+    apache_include=`${apxs} -q INCLUDEDIR`
+  fi
 fi
 
 if test -z "${apache_include}" -a -r "${apache_dir}/include/httpd.h"; then
   apache_include=${apache_dir}/include
 fi
 
-if test -n "${apache_include}"; then
+if test -z "${APACHE_INC}" -a -n "${apache_include}"; then
   APACHE_INC="-I${apache_include}"
 fi
 
 #
 # deal with stronghold
 #
-if test -z "${apache_include}" -a -r "${apache_dir}/src/include/httpd.h"; then
+if test -z ${APACHE_INC} -a -z "${apache_include}" -a -r "${apache_dir}/src/include/httpd.h"; then
   apache_include=${apache_dir}/src/include
 
   APACHE_INC="-I${apache_dir}/src/include"
@@ -472,7 +476,7 @@ if test -z "${apache_include}" -a -r "${apache_dir}/src/include/httpd.h"; then
   APACHE_INC="-I${apache_dir}/src/os/unix $APACHE_INC"
 fi
 
-if test -n "$apache" -a ! -r ${apache_include}/httpd.h; then
+if test -n "$apache" -a -z "${APACHE_INC}" -a ! -r ${apache_include}/httpd.h; then
   AC_MSG_ERROR([Can't find Apache include directory ${apache_include}])
 fi
 
@@ -1057,6 +1061,10 @@ fi
 
 if test -z "$apache"; then
   a=b
+elif test -n "${APACHE_INC}" -a -z "${apache_include}"; then
+  echo "Using Apache 2.0 configuration ${apache_conf}"
+  
+  plugins="$plugins apache2"
 elif test -r "${apache_include}/apr_thread_mutex.h" -o -n "${apr_inc}"; then
   echo "Using Apache 2.0 configuration ${apache_conf}"
 

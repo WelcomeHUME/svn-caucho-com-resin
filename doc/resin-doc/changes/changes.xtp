@@ -6,7 +6,50 @@
 
 <s1 title="Resin Change Log">
 
-<s2 title="4.0.52 - in progress">
+<s2 title="4.0.54 - in progress">
+<ul>
+<li>elastic: dynamic server timeouts not properly handled (#6088)</li>
+<li>log: add archive-format to watchdog-log (#6081)</li>
+<li>network: timing issue with thread launcher (#6089)</li>
+<li>network: add 120s failsafe to thread launcher (#6089)</li>
+<li>admin: hessian whitelist issue with ObjectName (#6043, rep by Shinomiya NObuaki)</li>
+<li>admin: add web-app information to CLI status (#6056)</li>
+<li>deploy: deploy issues from /resin-admin (#6050, rep by Shinomiya Nobuaki)</li>
+<li>log: add getFormatter() support for SyslogHandler (#6087)</li>
+<li>servlet: change access log NPE logging to see stack trace (rep by Steffen Busch)</li>
+<li>servlet: error-page for 400 (#6076, rep by stbu)</li>
+<li>servlet: session issues when using ScheduledTask (#6080, rep by kenjrwalker)</li>
+<li>servlet: multipart form error attributes (#6077, rep by Steffen Busch)</li>
+<li>log: log rotation timing issues on HP-UX (#6079)</li>
+<li>cache: rename javax.cache to com.caucho.cache to avoid conflict with final spec (#6071)</li>
+<li>admin: NPE in JavaClassDef.getField (#6074)</li>
+<li>actor: backport actors actor from Baratine for HP-UX issues</li>
+<li>dump_heap: hprof-path must use getNativePath() for windows (#6072)</li>
+<li>mod_caucho: redirect issue with query parameters (#6054)</li>
+<li>cache: kill keepalive when cache is invalid (#5982, rep by jfblachon)</li>
+<li>cdi: timing issue with ApplicationScoped beans (#6639, rep by Jose Fernandez)</li>
+<li>cluster: cleanup of heartbeat period and timeout (#5904, rep by Tom Pohl)</li>
+<li>servlet: i18n issues with encodeRedirectURL over 0x8000 (#6069, rep by marc82ch)</li>
+<li>servlet: handling of stale web-app while processing error page</li>
+<li>jsse: default system properties moved to resin.xml (#6063, rep by Marc Wiest)</li>
+<li>jsse: honor-cipher-order (#6067, rep by stbu)</li>
+</ul>
+</s2>
+
+<s2 title="4.0.53 - Jun 21, 2017">
+<ul>
+<li>install: issue with symlink and existing directory (#5951, rep by A. Hilliard)</li>
+<li>webapp: sync issues with starting (#5979, rep by Mathias Lagerwall)</li>
+<li>php: preload was switched to load (#6059, rep by kpokrovsky)</li>
+<li>jsp: multiple free of BodyContext (#6061)</li>
+<li>jsp: .smap issues with invokedynamic constant pool (#6060, rep by mnsh)</li>
+<li>mod_caucho: updates to ;jsessionid stripping (#6057, rep by Shinomiya Nobuaki)</li>
+<li>health: added resin.properties configure to disable health checks and logging (#6055)</li>
+<li>rewrite: NPE when web-app stopped and rewrite rules used (#6048, rep by stbu)</li>
+</ul>
+</s2>
+
+<s2 title="4.0.52 - May 19, 2017">
 <ul>
 <li>apache: reencode 0x0d for uri in mod_caucho</li>
 <li>jsse: set default JSSE settings to higher levels (#6051, rep by VasumathiN)</li>
