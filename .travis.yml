@@ -1,7 +1,6 @@
 language: java
 
 script:
- - cd modules/quercus
  - mvn package
 
 jdk:
